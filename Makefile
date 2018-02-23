@@ -100,7 +100,7 @@ ALL_LDFLAGS += $(EXTRA_NVCCLDFLAGS)
 ALL_LDFLAGS += $(addprefix -Xlinker ,$(EXTRA_LDFLAGS))
 
 # Common includes and paths for CUDA
-INCLUDES  := -I../../common/inc
+INCLUDES  := -I../../common/inc -I./
 LIBRARIES :=
 
 ################################################################################
@@ -126,8 +126,8 @@ batch.o: batch.cpp
 buffer.o: buffer.cpp
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-microbenchmarking_transfers.o: microbenchmarking_transfers.cu
-	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
+microBenchmarking-Transfers.o: microBenchmarking-Transfers.cu
+	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o  $@ -c -DPINNED $<
 
 vectorAdd.o: vectorAdd.cu
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
@@ -177,8 +177,8 @@ TaskTemporizer.o: TaskTemporizer.cu
 main.o: main.cpp
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 	
-streamsModel-VCPP: main.o buffer.o batch.o SobolQRNG.o PathFinder.o ParticleFilter.o Gaussian.o Needle.o vectorAdd.o matrixMult.o histogram.o transpose.o BlackScholes.o FastWalshTransform.o ConvolutionSeparable.o microbenchmarking_transfers.o TaskTemporizer.o
-	$(NVCC) $(ALL_LDFLAGS) -o $@ $+ $(LIBRARIES)
+streamsModel-VCPP: main.o buffer.o batch.o SobolQRNG.o PathFinder.o ParticleFilter.o Gaussian.o Needle.o vectorAdd.o matrixMult.o histogram.o transpose.o BlackScholes.o FastWalshTransform.o ConvolutionSeparable.o microBenchmarking-Transfers.o TaskTemporizer.o
+	$(NVCC) $(ALL_LDFLAGS) -DPINNED -o $@ $+ $(LIBRARIES)
 	mkdir -p ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
 	cp $@ ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
 

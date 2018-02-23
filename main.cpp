@@ -10,7 +10,7 @@
 #include <fstream>
 #include <algorithm>
 #include <vector>
-#include "microbenchmarking_transfers.h"
+#include "microBenchmarking-Transfers.h"
 //#include "sintetic_benchmarks.h"
 //#include "benchmarks4tasks/sinteticBenchmarks-4tasks.h"
 //#include "benchmarks6tasks/sinteticBenchmarks-6tasks.h"
@@ -40,7 +40,7 @@
 
 #include "vectorAdd.h"
 #include "matrixMult.h"
-#include "microbenchmarking_transfers.h"
+//#include "microbenchmarking_transfers.h"
 #include "histogram.h"
 #include "transpose.h"
 //#include "cublasrotm.h"
@@ -3133,15 +3133,36 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
   	int *bytes_dth = new int[N_TASKS];
 
 
-  	float LoHTD          = 0.0;
+  	/*float LoHTD          = 0.0;
   	float LoDTH          = 0.0;
   	float GHTD           = 0.0;
   	float overlappedGHTD = 0.0;
   	float GDTH           = 0.0;
-  	float overlappedGDTH = 0.0;
+  	float overlappedGDTH = 0.0;*/
     
   	//PCIe microbencmarking
-  	microbenchmarkingPCI(gpu, &LoHTD, &LoDTH, &GHTD, &overlappedGHTD, &GDTH, &overlappedGDTH, nIter);
+  	//microbenchmarkingPCI(gpu, &LoHTD, &LoDTH, &GHTD, &overlappedGHTD, &GDTH, &overlappedGDTH, nIter);
+
+
+
+    //We create a MicroBenchmarkingTransfers object
+    MicroBenchmarkingTransfers microBench(gpu, 2, 512);
+
+    //We execute the microbenchmarkin10
+    microBench.execute();
+
+    //We get values of the microbenchmaring
+    float LoHTD               = microBench.getLoHTD();
+    float LoDTH               = microBench.getLoDTH();
+    float GHTD                = microBench.getGHTD();
+    float GDTH                = microBench.getGDTH();
+    float overlappedGHTD      = microBench.getOverlappedGHTD();
+    float overlappedGDTH      = microBench.getOverlappedGDTH();
+
+
+
+
+
 
 
 
