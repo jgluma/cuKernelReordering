@@ -11,13 +11,6 @@
 #include <algorithm>
 #include <vector>
 #include "microbenchmarking_transfers.h"
-//#include "sintetic_benchmarks.h"
-//#include "benchmarks4tasks/sinteticBenchmarks-4tasks.h"
-//#include "benchmarks6tasks/sinteticBenchmarks-6tasks.h"
-//#include "benchmarks8tasks/sinteticBenchmarks-8tasks.h"
-//#include "benchmarks16tasks/sinteticBenchmarks-16tasks.h"
-//#include "benchmarks32tasks/sinteticBenchmarks-32tasks.h"
-//#include "sinteticTask.h"
 #include "TaskTemporizer.h"
 #include <sys/time.h>
 #include <unistd.h> 
@@ -42,11 +35,8 @@
 
 #include "vectorAdd.h"
 #include "matrixMult.h"
-#include "microbenchmarking_transfers.h"
 #include "histogram.h"
 #include "transpose.h"
-//#include "cublasrotm.h"
-//#include "FFT.h"
 #include "BlackScholes.h"
 #include "FastWalshTransform.h"
 #include "ConvolutionSeparable.h"
@@ -56,62 +46,10 @@
 #include "PathFinder.h"
 #include "SobolQRNG.h"
 
-#define INF_TIME	1000000000
-
-int order_tasks[12] = {4, 0, 3, 1, 5, 2, 3, 1, 0, 5, 4, 2};
-
 using namespace std;
-
-#define PRINT_SIMULATOR_TRACE	0
-#define TASKS_TIMES_TO_FILE	1
-
-#define LAUNCH_LAST_HTD	1
-#define LAUNCH_BATCH	0
 
 #define DK	0
 #define DT	1
-
-#define ORDER_TO_FILE	0
-
-#define PRUEBA_KDTH_MIN 0
-
-//#define MAX_N_EPOCH	40
-
-struct infoCommand{
-	int id_stream;				//ID stream
-	int id_epoch;				//ID epoca
-	int id;						//ID del comando en la simulacion actual.
-	
-	float t_ini;				//Tiempo de inicio del comando
-	float t_fin;				//Tiempo de fin del comando
-	float t_estimated_fin;		//Tiempo de fin estimado para el comando
-	float t_CPU_GPU;			//Duracion comando HTD
-	float t_GPU_CPU;			//Duracion comando DTH
-	float t_kernel;				//Duracion comando Kernel
-	float t_overlap_CPU_GPU;	//Tiempo de duracion del comando HTD cuando esta solapado.
-	float t_overlap_GPU_CPU;	//Tiempo de duracion del comando DTH cuando esta solapado.
-	bool active_htd;			//Flag que indica que el comando tiene una dependencia con un comando HTD.
-	bool ready;					//Flag para indicar que el comando esta listo
-	bool enqueue;				//Flag que indica que el comando debe ser encolado para tener en cuenta en una epoca posterior.
-	bool overlapped;			//Flag que indica que el comando de transferencia esta siendo solapado con otro comando de transferencia. 
-	bool launched;				//Flag que indica que el comando ya ha sido simulado en una epoca anterior.
-	
-	std::deque<infoCommand>::iterator next_command;	//Puntero a otro comando debido a que contiene una dependencia.
-};
-
-//Colas de comandos para el simulador
-deque<infoCommand>deque_simulation_DTH;
-deque<infoCommand>deque_simulation_HTD;
-deque<infoCommand>deque_simulation_K;
-
-//Colas de comandos a tener en cuenta para una epoca posterior.
-deque<infoCommand>deque_current_DTH;
-deque<infoCommand>deque_current_HTD;
-deque<infoCommand>deque_current_K;
-
-deque<infoCommand>deque_execution_DTH;
-deque<infoCommand>deque_execution_HTD;
-deque<infoCommand>deque_execution_K;
 
 /**
  * @brief      Tokenizer
@@ -225,15 +163,13 @@ float getMedianTimeG(float *h_times, int N)
 	return median;
 }
 
-/* esto seguro que sabes lo que hace ... */
 void swap(int *x, int *y) { 
   int temp = *x;
   *x = *y;
   *y = temp;
 }
 
-void allocHostMemory(int n_app, ifstream &fb, 
-					vector <Task *>&tasks_v, int gpu)
+void allocHostMemory(int n_app, ifstream &fb, vector <Task *>&tasks_v, int gpu)
 {
 	for(int app = 0; app < n_app; app++)
 	{
@@ -406,36 +342,6 @@ void allocHostMemory(int n_app, ifstream &fb,
 
 				break;
 			}
-
-			/*case MYFFT:
-			{
-
-				int *params = new int[num_param];
-
-				for(int i = 0; i < num_param; i++)
-					params[i] = atoi(v[i+2].c_str());
-
-				tasks_v.push_back(new FFT(params[0]));
-
-				delete [] params;
-
-				break;
-			}*/
-
-			/*case ROTM:
-			{
-
-				int *params = new int[num_param];
-
-				for(int i = 0; i < num_param; i++)
-					params[i] = atoi(v[i+2].c_str());
-
-				tasks_v.push_back(new CUBLASROTM(params[0]));
-
-				delete [] params;
-
-				break;
-			}*/
 
 			case SB:
 			{
@@ -664,39 +570,6 @@ void executeKernels(int gpu, int nIter, float *time_kernels, ifstream &fb, int n
 				break;
 			}
 
-			/*
-			case MYFFT:
-			{
-
-				int *params = new int[num_param];
-
-				for(int i = 0; i < num_param; i++)
-					params[i] = atoi(v[i+2].c_str());
-
-				task = new FFT(params[0]);
-
-				delete [] params;
-
-				break;
-			}
-			*/
-
-			/*
-			case ROTM:
-			{
-
-				int *params = new int[num_param];
-
-				for(int i = 0; i < num_param; i++)
-					params[i] = atoi(v[i+2].c_str());
-
-				task = new CUBLASROTM(params[0]);
-
-				delete [] params;
-
-				break;
-			}
-			*/
 			case SB:
 			{
 				int *params = new int[num_param];
@@ -1208,14 +1081,6 @@ void setFileIdTasks(string &name, int benchmark, int nproducer)
 
 			break;
 		}
-
-		/*case 32:
-		{
-
-			setFileName_32producer(name, benchmark);
-
-			break;
-		}*/
 	}
 }
 
@@ -1272,10 +1137,9 @@ int main(int argc, char *argv[])
 	cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, gpu);
 
-	string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_" + 
-											str_type_distribution 
-											+ "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-											+ "e_i" + str_interval1 + "-" + str_interval2 + "-" + hostname + "-" + prop.name + "-HEURISTICO.txt";
+	string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_" + str_type_distribution 
+									+ "_" + to_string(nproducer) + "p_i" + str_interval1 + "-" + str_interval2
+									+ "-" + hostname + "-" + prop.name + "-HEURISTICO.txt";
 
 	ofstream fich_tasks_matrix(name_matrixTasks_file);
 	
@@ -1284,8 +1148,6 @@ int main(int argc, char *argv[])
 	
   	int * id_launched_tasks = new int[nproducer*nepoch];	//id of the launched tasks by the producer threads
   	float *waiting_times    = new float[nproducer*nepoch];		//Waiting time for the tasks insertions for the producer threads
-
-  	float *elapsed_times = new float[nIter];	//Execution times
 
 	//We read the tasks id file and the waiting times file.
 	//Open files.
@@ -1478,7 +1340,6 @@ int main(int argc, char *argv[])
 
 	delete [] id_launched_tasks;
 	delete [] waiting_times;
-	delete [] elapsed_times;
 	delete [] n_launching_tasks;
 
 	return 0;
