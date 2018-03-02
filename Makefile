@@ -118,7 +118,7 @@ GENCODE_FLAGS   := $(GENCODE_SM20) $(GENCODE_SM30)
 # Target rules
 all: build
 
-build: streamsModel-VCPP
+build: streamsModel-VCPP timesEstimations
 	
 batch.o: batch.cpp
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
@@ -173,6 +173,14 @@ SobolQRNG.o: SobolQRNG.cu
 
 TaskTemporizer.o: TaskTemporizer.cu
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
+	
+estimateTimes.o: estimateTimes.cpp
+	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
+	
+timesEstimations: estimateTimes.o buffer.o batch.o SobolQRNG.o PathFinder.o ParticleFilter.o Gaussian.o Needle.o vectorAdd.o matrixMult.o histogram.o transpose.o BlackScholes.o FastWalshTransform.o ConvolutionSeparable.o microbenchmarking_transfers.o TaskTemporizer.o
+	$(NVCC) $(ALL_LDFLAGS) -o $@ $+ $(LIBRARIES)
+	mkdir -p ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
+	cp $@ ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
 
 main.o: main.cpp
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
@@ -184,9 +192,10 @@ streamsModel-VCPP: main.o buffer.o batch.o SobolQRNG.o PathFinder.o ParticleFilt
 
 run: build
 	./streamsModel-VCPP
+	./timesEstimations
 
 clean:
-	rm -f streamsModel-VCPP *.o 
+	rm -f streamsModel-VCPP timesEstimations *.o
 
 clobber: clean
 
