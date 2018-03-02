@@ -23,6 +23,8 @@
 #include <unistd.h> 
 #include <chrono>
 
+#include <limits.h>
+
 #define MM   0
 #define HST  1
 #define BS   2
@@ -1261,11 +1263,19 @@ int main(int argc, char *argv[])
 	setFileBenchmark(name_real_benchmark, benchmark, nproducer);
 	string name_task_file = str_task_file_path + name;
 	string real_benchmark_file = str_task_file_path + name_real_benchmark;
+	
+	//get name server
+	char hostname[50];
+	gethostname(hostname, 50);
+	
+	//get name gpu
+	cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, gpu);
 
 	string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_" + 
 											str_type_distribution 
 											+ "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-											+ "e_i" + str_interval1 + "-" + str_interval2 + "-HEURISTICO.txt";
+											+ "e_i" + str_interval1 + "-" + str_interval2 + "-" + hostname + "-" + prop.name + "-HEURISTICO.txt";
 
 	ofstream fich_tasks_matrix(name_matrixTasks_file);
 	
