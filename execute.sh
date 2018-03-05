@@ -27,3 +27,8 @@ do
 done
 
 
+# ./streamsModel-VCPP 0 4 40 4 ./benchmarks4tasks/ ./tiempos-aleatorios/ 5 uniform 0 0 1000
+
+# ./timesEstimations 0 4 40 4 ./benchmarks4tasks/ ./tiempos-aleatorios/ 5 uniform 0 0 1000
+
+# ./heuristic 0 4 40 4 ./benchmarks4tasks/ ./tiempos-aleatorios/ 5 uniform 0 0 300

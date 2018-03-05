@@ -370,7 +370,7 @@ int getTaskNoFirst(float *time_DTH_tasks, float *time_HTD_tasks, float *time_ker
 
 float heuristic(int *h_order_processes, int n_app, int *execute_batch, float *time_kernel_tasks, float *time_HTD_tasks, 
 				float *time_DTH_tasks, float *time_overlapped_HTD_tasks, float *time_overlapped_DTH_tasks,
-				Batch &scheduling_batch, 
+				int scheduling_batch, 
 				float t_previous_ini_htd, float t_previous_ini_kernel, float t_previous_ini_dth,
 				float t_previous_fin_htd, float t_previous_fin_kernel, float t_previous_fin_dth,
 				float *t_current_ini_htd, float *t_current_ini_kernel, float *t_current_ini_dth,
@@ -387,7 +387,8 @@ float heuristic(int *h_order_processes, int n_app, int *execute_batch, float *ti
 	
 	
 	//n_type_tasks = total_tasks
-	int total_tasks = scheduling_batch.getTamBatch();	//Number of tasks in the scheduling batch
+	// int total_tasks = scheduling_batch.getTamBatch();	//Number of tasks in the scheduling batch
+	int total_tasks = scheduling_batch;	//Number of tasks in the scheduling batch
 	
 	float time_counter_HTD = 0.0;		//Time counter of the HTD commands
 	float time_counter_K   = 0.0;		//Time counter of the Kernel commands
@@ -3036,29 +3037,32 @@ void executeKernels(int gpu, int nIter, float *time_kernels, ifstream &fb, int n
 void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pending_tasks_buffer, int max_tam_batch, ifstream &fb,
 	int nstreams, int nepoch, atomic<int> &init_proxy, int iter, int nIter, float *elapsed_times, 
 	int *n_launching_tasks,
-	vector<float>&scheduling_times, int *selected_order, ofstream &fich_tasks_matrix)
+	vector<float>&scheduling_times, int *selected_order, ifstream &fich_tasks_matrix, int benchmark)
 {
 	//Scheduling batch.
-	Batch scheduling_batch(max_tam_batch); //Dejar esto
+	//Batch scheduling_batch(max_tam_batch);
+	int scheduling_batch = N_TASKS;
 
-	int scheduled_tasks = 0; //Dejar esto
+	int scheduled_tasks = 0;
 
 	//Launching order vector.
-  	int *h_order_processes = new int [nstreams]; //Dejar esto
+  	int *h_order_processes = new int [nstreams];
   	//Processes order vector in the execute batch.
-  	int *execute_batch = new int [nstreams]; //Dejar esto
+  	int *execute_batch = new int [nstreams];
+	
+	float *h_time_kernels_tasks = new float[N_TASKS];
 
   	//Transfers times of the tasks
-  	float *estimated_time_HTD                    = new float[N_TASKS]; //Dejar esto
-  	float *estimated_time_DTH                    = new float[N_TASKS]; //Dejar esto
-  	float *estimated_overlapped_time_HTD         = new float[N_TASKS]; //Dejar esto
- 	float *estimated_overlapped_time_DTH         = new float[N_TASKS]; //Dejar esto
+  	float *estimated_time_HTD                    = new float[N_TASKS];
+  	float *estimated_time_DTH                    = new float[N_TASKS];
+  	float *estimated_overlapped_time_HTD         = new float[N_TASKS];
+ 	float *estimated_overlapped_time_DTH         = new float[N_TASKS];
   
   	//Transfers times of the tasks according to the order of the scheduling batch 
-  	float *estimated_time_HTD_per_stream_execute            = new float[nstreams]; //Dejar esto
-  	float *estimated_time_DTH_per_stream_execute            = new float[nstreams]; //Dejar esto
-  	float *estimated_overlapped_time_HTD_per_stream_execute = new float[nstreams]; //Dejar esto
-  	float *estimated_overlapped_time_DTH_per_stream_execute = new float[nstreams]; //Dejar esto
+  	float *estimated_time_HTD_per_stream_execute            = new float[nstreams];
+  	float *estimated_time_DTH_per_stream_execute            = new float[nstreams];
+  	float *estimated_overlapped_time_HTD_per_stream_execute = new float[nstreams];
+  	float *estimated_overlapped_time_DTH_per_stream_execute = new float[nstreams];
 	
 	//get name server
 	char hostname[50];
@@ -3068,7 +3072,7 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 	cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, gpu);
 	
-	string name_matrixTasks_file = "Matrix-Tasks_bench5_uniform_"
+	string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_uniform_"
 									+ to_string(N_TASKS) + "p_i0-0-" + hostname + "-"
 									+ prop.name + "-HEURISTICO.txt";
 	ifstream archivo_entrada(name_matrixTasks_file);
@@ -3087,6 +3091,8 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 		app++;
 	}
 	
+	archivo_entrada.close();
+	
 	for(int app = 0; app < N_TASKS; app++){
 		cout << estimated_time_HTD[app] << "\t";
 		cout << h_time_kernels_tasks[app] << "\t";
@@ -3094,18 +3100,21 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 		cout << estimated_overlapped_time_HTD[app] << "\t";
 		cout << estimated_overlapped_time_DTH[app] << endl;
 	}
-	
-	archivo_entrada.close();
 
-  	float *h_time_kernels_tasks_execute = new float[nstreams]; //Dejar esto
+  	float *h_time_kernels_tasks_execute = new float[nstreams];
 
-  	float t_previous_ini_htd, t_previous_fin_htd; //Dejar esto
-  	float t_previous_ini_kernel, t_previous_fin_kernel; //Dejar esto
-  	float t_previous_ini_dth, t_previous_fin_dth; //Dejar esto
+  	float t_previous_ini_htd, t_previous_fin_htd;
+  	float t_previous_ini_kernel, t_previous_fin_kernel;
+  	float t_previous_ini_dth, t_previous_fin_dth;
   	
-  	float t_current_ini_htd, t_current_fin_htd; //Dejar esto
-  	float t_current_ini_kernel, t_current_fin_kernel; //Dejar esto
-  	float t_current_ini_dth, t_current_fin_dth; //Dejar esto
+  	float t_current_ini_htd, t_current_fin_htd;
+  	float t_current_ini_kernel, t_current_fin_kernel;
+  	float t_current_ini_dth, t_current_fin_dth;
+	
+	float *t_previous_last_dth_stream = new float[nstreams];
+  	memset(t_previous_last_dth_stream, 0, nstreams * sizeof(float));
+  	float *t_current_last_dth_stream = new float[nstreams];
+  	memset(t_current_last_dth_stream, 0, nstreams * sizeof(float));
   	
   	t_previous_ini_htd = 0;
   	t_previous_fin_htd = 0;
@@ -3113,7 +3122,70 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
   	t_previous_fin_kernel = 0;
   	t_previous_ini_dth = 0;
   	t_previous_fin_dth = 0;
+	
+	for(int app = 0; app < N_TASKS; app++){
+		execute_batch[app]                                    = app;
+		h_time_kernels_tasks_execute[app]                     = h_time_kernels_tasks[app];
+		estimated_time_HTD_per_stream_execute[app]            = estimated_time_HTD[app];
+		estimated_time_DTH_per_stream_execute[app]            = estimated_time_DTH[app];
+		estimated_overlapped_time_HTD_per_stream_execute[app] = estimated_overlapped_time_HTD[app];
+		estimated_overlapped_time_DTH_per_stream_execute[app] = estimated_overlapped_time_DTH[app];
+	}
+	
+	for(int epoch = 0; epoch < nepoch; epoch++){
+		cout << "scheduling_batch.getTamBatch(): " << scheduling_batch << endl;
+		cout << "scheduled_tasks: " << scheduled_tasks << endl;
+		
+		cout << "t_previous_ini_htd: " << t_previous_ini_htd << endl;
+		cout << "t_previous_fin_htd: " << t_previous_fin_htd << endl;
+		cout << "t_previous_ini_kernel: " << t_previous_ini_kernel << endl;
+		cout << "t_previous_fin_kernel: " << t_previous_fin_kernel << endl;
+		cout << "t_previous_ini_dth: " << t_previous_ini_dth << endl;
+		cout << "t_previous_fin_dth: " << t_previous_fin_dth << endl;
+		
+		float time_simulation = heuristic(h_order_processes, scheduling_batch, execute_batch,
+											  h_time_kernels_tasks_execute, estimated_time_HTD_per_stream_execute, 
+											  estimated_time_DTH_per_stream_execute, 
+											  estimated_overlapped_time_HTD_per_stream_execute,
+											  estimated_overlapped_time_DTH_per_stream_execute,
+											  scheduling_batch, 
+											  t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
+											  t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
+											  &t_current_ini_htd, &t_current_ini_kernel, &t_current_ini_dth,
+											  &t_current_fin_htd, &t_current_fin_kernel, &t_current_fin_dth,
+											  t_previous_last_dth_stream, t_current_last_dth_stream, scheduled_tasks/nstreams);
+													  
+		for(int app = 0; app < N_TASKS; app++)
+			cout << h_order_processes[app] << "\t";
+		cout << endl;
+											  
+		t_previous_ini_htd    = t_current_ini_htd;
+		t_previous_fin_htd    = t_current_fin_htd;
+		t_previous_ini_kernel = t_current_ini_kernel;
+		t_previous_fin_kernel = t_current_fin_kernel;
+		t_previous_ini_dth    = t_current_ini_dth;
+		t_previous_fin_dth    = t_current_fin_dth;
+		
+		for(int i = 0; i < nstreams; i++)
+			t_previous_last_dth_stream[i] = t_current_last_dth_stream[i];
+		
+		cout << "t_current_ini_htd: " << t_current_ini_htd << endl;
+		cout << "t_current_fin_htd: " << t_current_fin_htd << endl;
+		cout << "t_current_ini_kernel: " << t_current_ini_kernel << endl;
+		cout << "t_current_fin_kernel: " << t_current_fin_kernel << endl;
+		cout << "t_current_ini_dth: " << t_current_ini_dth << endl;
+		cout << "t_current_fin_dth: " << t_current_fin_dth << endl;
+		cout << "t_previous_ini_htd: " << t_previous_ini_htd << endl;
+		cout << "t_previous_fin_htd: " << t_previous_fin_htd << endl;
+		cout << "t_previous_ini_kernel: " << t_previous_ini_kernel << endl;
+		cout << "t_previous_fin_kernel: " << t_previous_fin_kernel << endl;
+		cout << "t_previous_ini_dth: " << t_previous_ini_dth << endl;
+		cout << "t_previous_fin_dth: " << t_previous_fin_dth << endl;
+		
+		scheduled_tasks += N_TASKS;
+	}
 
+	/*
 	//CPU timers
 	struct timeval t1, t2; //, t1_perm, t2_perm, t1_creation_perm, t2_creation_perm, t1_total_sim_perm, t2_total_sim_perm;
   	struct timeval t1_scheduling, t2_scheduling;
@@ -3288,10 +3360,12 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 	for(int i = 0; i < nstreams; i++)
 	 cudaStreamDestroy(streams[i]);
 	delete [] streams;
+	*/
 
 	delete [] h_order_processes;
   	delete [] execute_batch;
   	
+	/*
   	//Destroying tasks
   	for(int t = 0; t < N_TASKS; t++)
   		tasks_v.pop_back();
@@ -3311,6 +3385,7 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
  	free(htd_end);
  	free(dth_end);
  	free(kernel_end);
+	*/
  
   	delete [] estimated_time_HTD; 
   	delete [] estimated_time_DTH; 
@@ -3778,16 +3853,10 @@ void setFileBenchmark(string &name, int benchmark, int nproducer)
  */
 void proxyThread(int gpu, int tid, vector<BufferTasks> &producer_buffers, int nproducer, int nepoch, int max_tam_batch, ifstream &fb, 
 	atomic<int> &init_proxy, int iter, int nIter, float *elapsed_times, int *n_launching_tasks,
-	vector<float>&scheduling_times, int *selected_order, ofstream &fich_tasks_matrix)
+	vector<float>&scheduling_times, int *selected_order, ifstream &fich_tasks_matrix, int benchmark)
 {
-	//Boolean vector
-	vector <bool> stop (nproducer);
-
 	//Pending tasks buffer.
 	BufferTasks pending_tasks_buffer;
-  
-  	for(int p = 0; p < nproducer; p++)
-		stop[p] = false;
   
   	//Synchronization variable for handler gpu thread.
   	atomic<int> stop_handler_gpu;
@@ -3797,43 +3866,7 @@ void proxyThread(int gpu, int tid, vector<BufferTasks> &producer_buffers, int np
   	thread scheduler_th(handler_gpu_func, gpu, ref(stop_handler_gpu), ref(pending_tasks_buffer), max_tam_batch, ref(fb),
   						nproducer, nepoch, 
 						ref(init_proxy), iter, nIter, elapsed_times, n_launching_tasks,
-						ref(scheduling_times), selected_order, ref(fich_tasks_matrix));
-
-   	bool shutdown = false;
-
-   	while(shutdown == false)
-   	{
-   	   //Loop the producer buffers.
-		for(int p = 0; p < nproducer; p++)
-		{
-	   		//Available tasks to consume
-	   		if(producer_buffers[p].getProducedElements() != 0)
-		   	{
-				infoTask task;
-
-			    //Get task from producer buffer.
-				producer_buffers[p].getFront(task);
-				//Consume task
-				producer_buffers[p].popFront();
-
-				//If the tasks is a STOP task
-				if(task.id_task == STOP)
-					stop[p] = true;
-				else
-				{
-					//Insert task into the pending tasks buffer.
-					pending_tasks_buffer.pushBack(task);
-				}
-			}
-		}
-
-		//Check if all producer threads have inserted STOP tasks and there are not pending tasks to consume.
-		if(proxy_shutdown(stop, nproducer) == true && pending_tasks_buffer.getProducedElements() == 0)
-		{
-			stop_handler_gpu.store(1);
-			shutdown = true;
-		}
-   	}
+						ref(scheduling_times), selected_order, ref(fich_tasks_matrix), benchmark);
 
    	//Waiting the handler gpu thread.
    	scheduler_th.join();
@@ -3909,8 +3942,7 @@ int main(int argc, char *argv[])
 	
 	///We construct the path of the file name of the intervals times
 	string name_times_file = str_time_file_path + "times_" + str_type_distribution 
-							+ "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-							+ "e_i" + str_interval1 + "-" + str_interval2 + ".txt";
+							+ "_" + to_string(nproducer) + "p_40e_i" + str_interval1 + "-" + str_interval2 + ".txt";
 
 	string name;
 	//Set path of the benchmark file name.
@@ -3931,7 +3963,7 @@ int main(int argc, char *argv[])
 	string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_" + str_type_distribution 
 									+ "_" + to_string(nproducer) + "p_i" + str_interval1 + "-" + str_interval2
 									+ "-" + hostname + "-" + prop.name + "-HEURISTICO.txt";
-	ofstream fich_tasks_matrix(name_matrixTasks_file);
+	ifstream fich_tasks_matrix(name_matrixTasks_file);
 	
 	//Select GPU
   	cudaSetDevice(gpu);
@@ -3990,96 +4022,16 @@ int main(int argc, char *argv[])
 
 		//Launching proxy thread
 
-		//Creating producer
-	    thread *producer_vector = new thread[nproducer];
-
 		init_proxy.store(0);
 		sync_producers.store(0);	//NO SE UTILIZA
 
 		thread proxy(proxyThread, gpu, nproducer + 1, ref(producer_buffers), nproducer, nepoch, max_tam_batch, ref(fb),
 		ref(init_proxy), iter, nIter, elapsed_times, 
-		n_launching_tasks, ref(scheduling_times), selected_order, ref(fich_tasks_matrix));
-
-		while(init_proxy.load() == 0);
-
-		for(int tid = 0; tid < nproducer; tid++)
-			producer_vector[tid] = thread(producerThread, gpu, tid, ref(producer_buffers), nepoch, id_launched_tasks, 
-								waiting_times, ref(sync_producers), nproducer);
-
-		for(int tid = 0; tid < nproducer; tid++)
-			producer_vector[tid].join();
+		n_launching_tasks, ref(scheduling_times), selected_order, ref(fich_tasks_matrix), benchmark);
 
 		//Waiting Proxy thread
 		proxy.join();
-
-		delete [] producer_vector;
 	}
-
-	string name_fich_time_rep = "rep_times_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-							+ "e_i" + str_interval1 + "-" + str_interval2 + "-PRUEBA.txt";
-
-	ofstream f_time_rep(name_fich_time_rep);
-
-	for(int i = 0; i < nIter; i++)
-	{
-		f_time_rep << elapsed_times[i] << endl;
-	}
-
-	f_time_rep.close();
-
-	string name_fich_results = "results_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-							+ "e_i" + str_interval1 + "-" + str_interval2 + "-PRUEBA.txt";
-	ofstream fresult(name_fich_results);
-
-	fresult << getMedianTimeG(elapsed_times, nIter);
-
-	float n_launching = 0;
-
-	for(int t = 0; t < max_tam_batch; t++)
-	{
-		n_launching += n_launching_tasks[t]*1.0;
-		fresult << "\t" << n_launching_tasks[t];
-	}
-
-	fresult << "\t" << (nepoch * nproducer)/n_launching;
-	
-	//Avg and Median of the scheduling time of the heuristic
-	float avg_scheduling_time = 0;
-	for(int t = 0; t < scheduling_times.size(); t++)
-		avg_scheduling_time += scheduling_times.at(t);
-
-	avg_scheduling_time = avg_scheduling_time/scheduling_times.size();
-
-	float median_scheduling_time;
-
-	sort(scheduling_times.begin(), scheduling_times.end());
-
-	if(scheduling_times.size()%2 == 0)
-		median_scheduling_time = (scheduling_times.at(scheduling_times.size()/2) + scheduling_times.at(scheduling_times.size()/2 - 1))/2;
-	else
-	{
-		int p = scheduling_times.size()/2;
-
-		median_scheduling_time = scheduling_times.at(p);
-	}
-
-	fresult << "\t" << avg_scheduling_time << "\t" << median_scheduling_time << endl;
-	fresult << "Orden ID procesos: ";
-	for(int i = 0; i < N_TASKS*nepoch; i++)
-		fresult << selected_order[i] << " ";
-	fresult << endl;
-
-	fresult << "Orden ID Tasks: ";
-	for(int e = 0; e < nepoch; e++)
-		for(int s = 0; s < N_TASKS; s++)
-		{
-			int id_stream = selected_order[e*N_TASKS + s];
-			fresult << id_launched_tasks[id_stream*nepoch + e] << " ";
-		}
-		
-	fresult << endl;
-
-	cout << getMedianTimeG(elapsed_times, nIter) << "\t" << avg_scheduling_time << "\t" << median_scheduling_time << endl;
 
 	fich_tasks_matrix.close();
 	fb.close();
