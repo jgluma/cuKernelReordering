@@ -118,7 +118,7 @@ GENCODE_FLAGS   := $(GENCODE_SM20) $(GENCODE_SM30)
 # Target rules
 all: build
 
-build: streamsModel-VCPP timesEstimations heuristic
+build: streamsModel-VCPP timesEstimations heuristic execution
 	
 batch.o: batch.cpp
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
@@ -186,6 +186,14 @@ heuristic.o: heuristic.cpp
 	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 	
 heuristic: heuristic.o buffer.o batch.o SobolQRNG.o PathFinder.o ParticleFilter.o Gaussian.o Needle.o vectorAdd.o matrixMult.o histogram.o transpose.o BlackScholes.o FastWalshTransform.o ConvolutionSeparable.o microbenchmarking_transfers.o TaskTemporizer.o
+	$(NVCC) $(ALL_LDFLAGS) -o $@ $+ $(LIBRARIES)
+	mkdir -p ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
+	cp $@ ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
+	
+execution.o: execution.cpp
+	$(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
+	
+execution: execution.o buffer.o batch.o SobolQRNG.o PathFinder.o ParticleFilter.o Gaussian.o Needle.o vectorAdd.o matrixMult.o histogram.o transpose.o BlackScholes.o FastWalshTransform.o ConvolutionSeparable.o microbenchmarking_transfers.o TaskTemporizer.o
 	$(NVCC) $(ALL_LDFLAGS) -o $@ $+ $(LIBRARIES)
 	mkdir -p ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
 	cp $@ ../../bin/$(OS_ARCH)/$(OSLOWER)/$(TARGET)$(if $(abi),/$(abi))
