@@ -29,6 +29,8 @@ using namespace std;
 
 #define PRUEBA_KDTH_MIN 0
 
+#define MEASURE_TIME 0
+
 struct infoCommand{
 	
 	int id_stream;				//ID stream
@@ -101,6 +103,78 @@ vector<string> tokenize(const string& str,const string& delimiters)
 
 	return tokens;
 };
+
+void swapG(float & v1, float & v2){
+    float tmp = v1;
+    v1 = v2;
+    v2 = tmp;
+}
+
+int partitionG(float *array, int left, int right){
+    int part = right;
+    swapG(array[part],array[(right+left) / 2]);
+    
+    --right;
+ 
+    while(true){
+        while(array[left] < array[part]){
+            ++left;
+        }
+        while(right >= left && array[part] <= array[right]){
+            --right;
+        }
+        if(right < left) break;
+ 
+        swapG(array[left],array[right]);
+        ++left;
+        --right;
+    }
+ 
+    swap(array[part],array[left]);
+ 
+    return left;
+}
+
+void qsG(float * array, const int left, const int right){
+    if(left < right){
+        const int part = partitionG(array, left, right);
+        qsG(array, part + 1,right);
+        qsG(array, left,part - 1);
+    }
+}
+
+void serialQuickSortG(float *array, const int size){
+    qsG(array, 0,size-1);
+}
+
+float getMedianTimeG(float *h_times, int N)
+{
+	float median = 0;
+
+	float * h_sorted_times = (float *)malloc(N * sizeof(float));
+	
+	for(int n = 0; n < N; n++)
+		h_sorted_times[n] = h_times[n];
+		
+	//Sort execution times
+	serialQuickSortG(h_sorted_times, N);
+	
+	//Calculate median
+	if(N%2 == 0)
+	{
+		median = (h_sorted_times[N/2] + h_sorted_times[(N/2)+1])/2;
+	}
+	else
+	{
+		int p = N/2;
+		
+		median = h_sorted_times[p];
+	}
+	
+	free(h_sorted_times);
+	
+	return median;
+}
 
 float getMinTime(float *h_times, int N)
 {
@@ -1935,155 +2009,178 @@ int main(int argc, char *argv[])
 	string str_interval1(argv[9]);			//Minimum time interval
 	string str_interval2(argv[10]);			//Maximum time interval
 	
-	//Scheduling batch.
-	//Batch scheduling_batch(max_tam_batch);
-	int scheduling_batch = N_TASKS;
-	int nstreams = nproducer;
+	float *elapsed_times = new float[nIter];	//Execution times
 	
-	int scheduled_tasks = 0;
-	
-	//Launching order vector.
-	int *h_order_processes = new int [nstreams];
-	//Processes order vector in the execute batch.
-	int *execute_batch = new int [nstreams];
-
-	float *h_time_kernels_tasks = new float[N_TASKS];
-	float *h_time_kernels_tasks_execute = new float[nstreams];
-
-	//Transfers times of the tasks
-	float *estimated_time_HTD                    = new float[N_TASKS];
-	float *estimated_time_DTH                    = new float[N_TASKS];
-	float *estimated_overlapped_time_HTD         = new float[N_TASKS];
-	float *estimated_overlapped_time_DTH         = new float[N_TASKS];
-	
-	//Transfers times of the tasks according to the order of the scheduling batch 
-	float *estimated_time_HTD_per_stream_execute            = new float[nstreams]; 
-	float *estimated_time_DTH_per_stream_execute            = new float[nstreams]; 
-	float *estimated_overlapped_time_HTD_per_stream_execute = new float[nstreams]; 
-	float *estimated_overlapped_time_DTH_per_stream_execute = new float[nstreams];
-	
-	//get name server
-	char hostname[50];
-	gethostname(hostname, 50);
-	
-	//get name gpu
-	cudaDeviceProp prop;
-	cudaGetDeviceProperties(&prop, gpu);
-	
-	string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_uniform_"
-									+ to_string(N_TASKS) + "p_i" + str_interval1 + "-" + str_interval2
-									+ "-" + hostname + "-" + prop.name + "-HEURISTICO.txt";
-	ifstream archivo_entrada(name_matrixTasks_file);
-	string linea;
-	int app = 0;
-	
-	while(getline(archivo_entrada, linea)) {
-		vector<string> v(tokenize (linea, "\t"));
-		estimated_time_HTD[app] = atof(v[1].c_str());
-		h_time_kernels_tasks[app] = atof(v[2].c_str());
-		estimated_time_DTH[app] = atof(v[3].c_str());
-		estimated_overlapped_time_HTD[app] = atof(v[4].c_str());
-		estimated_overlapped_time_DTH[app] = atof(v[5].c_str());
-		app++;
-	}
-	
-	archivo_entrada.close();
-	
-	float t_previous_ini_htd, t_previous_fin_htd;
-	float t_previous_ini_kernel, t_previous_fin_kernel;
-	float t_previous_ini_dth, t_previous_fin_dth;
-	
-	float t_current_ini_htd, t_current_fin_htd;
-	float t_current_ini_kernel, t_current_fin_kernel;
-	float t_current_ini_dth, t_current_fin_dth;
-  
-	float *t_previous_last_dth_stream = new float[nstreams];
-	memset(t_previous_last_dth_stream, 0, nstreams * sizeof(float));
-	float *t_current_last_dth_stream = new float[nstreams];
-	memset(t_current_last_dth_stream, 0, nstreams * sizeof(float));
-	
-	t_previous_ini_htd = 0;
-	t_previous_fin_htd = 0;
-	t_previous_ini_kernel = 0;
-	t_previous_fin_kernel = 0;
-	t_previous_ini_dth = 0;
-	t_previous_fin_dth = 0;
-  
-	for(int i = 0; i < nstreams; i++)
-		t_previous_last_dth_stream[i] = 0;
+	for(int iter = 0; iter < nIter; iter++){
+#if MEASURE_TIME
+		struct timeval t1, t2;
+		gettimeofday(&t1, NULL);
+#endif
 		
-	for(int app = 0; app < N_TASKS; app++){
-		execute_batch[app]                                    = app;
-		h_time_kernels_tasks_execute[app]                     = h_time_kernels_tasks[app];
-		estimated_time_HTD_per_stream_execute[app]            = estimated_time_HTD[app];
-		estimated_time_DTH_per_stream_execute[app]            = estimated_time_DTH[app];
-		estimated_overlapped_time_HTD_per_stream_execute[app] = estimated_overlapped_time_HTD[app];
-		estimated_overlapped_time_DTH_per_stream_execute[app] = estimated_overlapped_time_DTH[app];
-	}
- 
-	for(int epoch = 0; epoch < nepoch; epoch++){	
-		//Launching Heuristic
-		float time_simulation = heuristic(h_order_processes, scheduling_batch, execute_batch,
-										  h_time_kernels_tasks_execute, estimated_time_HTD_per_stream_execute, 
-										  estimated_time_DTH_per_stream_execute, 
-										  estimated_overlapped_time_HTD_per_stream_execute,
-										  estimated_overlapped_time_DTH_per_stream_execute,
-										  scheduling_batch, 
-										  t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
-										  t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
-										  &t_current_ini_htd, &t_current_ini_kernel, &t_current_ini_dth,
-										  &t_current_fin_htd, &t_current_fin_kernel, &t_current_fin_dth,
-										  t_previous_last_dth_stream, t_current_last_dth_stream, scheduled_tasks/nstreams);
-
-		cerr << "Time Simulation: " << time_simulation << endl;
+		//Scheduling batch.
+		//Batch scheduling_batch(max_tam_batch);
+		int scheduling_batch = N_TASKS;
+		int nstreams = nproducer;
 		
-		string name_orderTasks_file = "Order-Tasks_bench" + to_string(benchmark) + "_uniform_"
-									+ to_string(nepoch) + "e_"
-									+ to_string(N_TASKS) + "p_i0-0-" + hostname + "-"
-									+ prop.name + "-HEURISTICO.txt";
-		ofstream order_file(name_orderTasks_file);
-		for(int app = 0; app < N_TASKS; app++)
-			order_file << h_order_processes[app] << " ";
-		order_file << endl;
-		order_file << "Time Simulation: " << time_simulation << endl;
-		order_file.close();
+		int scheduled_tasks = 0;
 		
-		t_previous_ini_htd    = t_current_ini_htd;
-		t_previous_fin_htd    = t_current_fin_htd;
-		t_previous_ini_kernel = t_current_ini_kernel;
-		t_previous_fin_kernel = t_current_fin_kernel;
-		t_previous_ini_dth    = t_current_ini_dth;
-		t_previous_fin_dth    = t_current_fin_dth;
+		//Launching order vector.
+		int *h_order_processes = new int [nstreams];
+		//Processes order vector in the execute batch.
+		int *execute_batch = new int [nstreams];
 
+		float *h_time_kernels_tasks = new float[N_TASKS];
+		float *h_time_kernels_tasks_execute = new float[nstreams];
+
+		//Transfers times of the tasks
+		float *estimated_time_HTD                    = new float[N_TASKS];
+		float *estimated_time_DTH                    = new float[N_TASKS];
+		float *estimated_overlapped_time_HTD         = new float[N_TASKS];
+		float *estimated_overlapped_time_DTH         = new float[N_TASKS];
+		
+		//Transfers times of the tasks according to the order of the scheduling batch 
+		float *estimated_time_HTD_per_stream_execute            = new float[nstreams]; 
+		float *estimated_time_DTH_per_stream_execute            = new float[nstreams]; 
+		float *estimated_overlapped_time_HTD_per_stream_execute = new float[nstreams]; 
+		float *estimated_overlapped_time_DTH_per_stream_execute = new float[nstreams];
+		
+		//get name server
+		char hostname[50];
+		gethostname(hostname, 50);
+		
+		//get name gpu
+		cudaDeviceProp prop;
+		cudaGetDeviceProperties(&prop, gpu);
+		
+		string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_uniform_"
+										+ to_string(N_TASKS) + "p_i" + str_interval1 + "-" + str_interval2
+										+ "-" + hostname + "-" + prop.name + "-HEURISTICO.txt";
+		ifstream archivo_entrada(name_matrixTasks_file);
+		string linea;
+		int app = 0;
+		
+		while(getline(archivo_entrada, linea)) {
+			vector<string> v(tokenize (linea, "\t"));
+			estimated_time_HTD[app] = atof(v[1].c_str());
+			h_time_kernels_tasks[app] = atof(v[2].c_str());
+			estimated_time_DTH[app] = atof(v[3].c_str());
+			estimated_overlapped_time_HTD[app] = atof(v[4].c_str());
+			estimated_overlapped_time_DTH[app] = atof(v[5].c_str());
+			app++;
+		}
+		
+		archivo_entrada.close();
+		
+		float t_previous_ini_htd, t_previous_fin_htd;
+		float t_previous_ini_kernel, t_previous_fin_kernel;
+		float t_previous_ini_dth, t_previous_fin_dth;
+		
+		float t_current_ini_htd, t_current_fin_htd;
+		float t_current_ini_kernel, t_current_fin_kernel;
+		float t_current_ini_dth, t_current_fin_dth;
+	  
+		float *t_previous_last_dth_stream = new float[nstreams];
+		memset(t_previous_last_dth_stream, 0, nstreams * sizeof(float));
+		float *t_current_last_dth_stream = new float[nstreams];
+		memset(t_current_last_dth_stream, 0, nstreams * sizeof(float));
+		
+		t_previous_ini_htd = 0;
+		t_previous_fin_htd = 0;
+		t_previous_ini_kernel = 0;
+		t_previous_fin_kernel = 0;
+		t_previous_ini_dth = 0;
+		t_previous_fin_dth = 0;
+	  
 		for(int i = 0; i < nstreams; i++)
-			t_previous_last_dth_stream[i] = t_current_last_dth_stream[i];
+			t_previous_last_dth_stream[i] = 0;
+			
+		for(int app = 0; app < N_TASKS; app++){
+			execute_batch[app]                                    = app;
+			h_time_kernels_tasks_execute[app]                     = h_time_kernels_tasks[app];
+			estimated_time_HTD_per_stream_execute[app]            = estimated_time_HTD[app];
+			estimated_time_DTH_per_stream_execute[app]            = estimated_time_DTH[app];
+			estimated_overlapped_time_HTD_per_stream_execute[app] = estimated_overlapped_time_HTD[app];
+			estimated_overlapped_time_DTH_per_stream_execute[app] = estimated_overlapped_time_DTH[app];
+		}
+	 
+		for(int epoch = 0; epoch < nepoch; epoch++){	
+			//Launching Heuristic
+			float time_simulation = heuristic(h_order_processes, scheduling_batch, execute_batch,
+											  h_time_kernels_tasks_execute, estimated_time_HTD_per_stream_execute, 
+											  estimated_time_DTH_per_stream_execute, 
+											  estimated_overlapped_time_HTD_per_stream_execute,
+											  estimated_overlapped_time_DTH_per_stream_execute,
+											  scheduling_batch, 
+											  t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
+											  t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
+											  &t_current_ini_htd, &t_current_ini_kernel, &t_current_ini_dth,
+											  &t_current_fin_htd, &t_current_fin_kernel, &t_current_fin_dth,
+											  t_previous_last_dth_stream, t_current_last_dth_stream, scheduled_tasks/nstreams);
+
+			cerr << "Time Simulation: " << time_simulation << endl;
+			
+			string name_orderTasks_file = "Order-Tasks_bench" + to_string(benchmark) + "_uniform_"
+										+ to_string(nepoch) + "e_"
+										+ to_string(N_TASKS) + "p_i0-0-" + hostname + "-"
+										+ prop.name + "-HEURISTICO.txt";
+			ofstream order_file(name_orderTasks_file);
+			for(int app = 0; app < N_TASKS; app++)
+				order_file << h_order_processes[app] << " ";
+			order_file << endl;
+			order_file << "Time Simulation: " << time_simulation << endl;
+			order_file.close();
+			
+			t_previous_ini_htd    = t_current_ini_htd;
+			t_previous_fin_htd    = t_current_fin_htd;
+			t_previous_ini_kernel = t_current_ini_kernel;
+			t_previous_fin_kernel = t_current_fin_kernel;
+			t_previous_ini_dth    = t_current_ini_dth;
+			t_previous_fin_dth    = t_current_fin_dth;
+
+			for(int i = 0; i < nstreams; i++)
+				t_previous_last_dth_stream[i] = t_current_last_dth_stream[i];
+			
+			//PASAMOS EL CONTENIDO FINAL DE LAS COLAS CURRENT A LAS COLAS DE EJECUCION
+			deque_execution_HTD.clear();   deque_execution_HTD = deque_current_HTD; deque_current_HTD.clear();
+			deque_execution_K.clear();	   deque_execution_K   = deque_current_K;   deque_current_K.clear();
+			deque_execution_DTH.clear();   deque_execution_DTH = deque_current_DTH; deque_current_DTH.clear();
+			
+			scheduled_tasks += N_TASKS;
+		}
+	 
+		delete [] h_order_processes;
+		delete [] execute_batch;
+	 
+		delete [] estimated_time_HTD; 
+		delete [] estimated_time_DTH; 
+		delete [] estimated_overlapped_time_HTD; 
+		delete [] estimated_overlapped_time_DTH;
 		
-		//PASAMOS EL CONTENIDO FINAL DE LAS COLAS CURRENT A LAS COLAS DE EJECUCION
-		deque_execution_HTD.clear();   deque_execution_HTD = deque_current_HTD; deque_current_HTD.clear();
-		deque_execution_K.clear();	   deque_execution_K   = deque_current_K;   deque_current_K.clear();
-		deque_execution_DTH.clear();   deque_execution_DTH = deque_current_DTH; deque_current_DTH.clear();
-		
-		scheduled_tasks += N_TASKS;
-	}
- 
-	delete [] h_order_processes;
-	delete [] execute_batch;
- 
-	delete [] estimated_time_HTD; 
-	delete [] estimated_time_DTH; 
-	delete [] estimated_overlapped_time_HTD; 
-	delete [] estimated_overlapped_time_DTH;
+		delete [] estimated_time_HTD_per_stream_execute; 
+		delete [] estimated_time_DTH_per_stream_execute; 
+		delete [] estimated_overlapped_time_HTD_per_stream_execute; 
+		delete [] estimated_overlapped_time_DTH_per_stream_execute;
+
+		delete [] h_time_kernels_tasks;
+		delete [] h_time_kernels_tasks_execute;
+
+		delete [] t_previous_last_dth_stream;
+		delete [] t_current_last_dth_stream;
 	
-	delete [] estimated_time_HTD_per_stream_execute; 
-	delete [] estimated_time_DTH_per_stream_execute; 
-	delete [] estimated_overlapped_time_HTD_per_stream_execute; 
-	delete [] estimated_overlapped_time_DTH_per_stream_execute;
+#if MEASURE_TIME
+		gettimeofday(&t2, NULL);
+		double timer = (t2.tv_sec - t1.tv_sec) * 1000000.0 + (t2.tv_usec - t1.tv_usec);
+		float elapsed_time = timer/1000.0;
 
-	delete [] h_time_kernels_tasks;
-	delete [] h_time_kernels_tasks_execute;
-
-	delete [] t_previous_last_dth_stream;
-	delete [] t_current_last_dth_stream;
+		elapsed_times[iter] = elapsed_time;
+#endif	
+	}
+	
+#if MEASURE_TIME
+	cout << "median: " << getMedianTimeG(elapsed_times, nIter) << endl;
+#endif	
+	
+	delete [] elapsed_times;
 
 	return 0;
 }
