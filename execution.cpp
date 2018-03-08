@@ -3148,10 +3148,6 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 
 			for(int app = 0; app < N_TASKS; app++)
 				h_order_processes[app] = selected_order[epoch * N_TASKS + app];
-				
-			for(int app = 0; app < N_TASKS; app++)
-				cout << h_order_processes[app] << " ";
-			cout << endl;
 			
 			//Lanzamos la epoca actual con su orden 
 			launching_applications_2CopyEngines_SIN_HYPERQ(streams, h_order_processes,
@@ -3175,10 +3171,7 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 	double timer = (t2.tv_sec - t1.tv_sec) * 1000000.0 + (t2.tv_usec - t1.tv_usec);
 	float elapsed_time = timer/1000.0;
 
-	elapsed_times[iter] = elapsed_time;
-	
-	cout << elapsed_time << endl;
-	
+	elapsed_times[iter] = elapsed_time;	
 
 	for(int t = 0; t < N_TASKS; t++)
   		tasks_v.at(t)->checkResults();
@@ -3972,33 +3965,33 @@ int main(int argc, char *argv[])
 		delete [] producer_vector;
 	}
 	
-
 	/*string name_fich_time_rep = "rep_times_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
 							+ "e_i" + str_interval1 + "-" + str_interval2 + ".-FORZANDO-ORDEN-SIN-RETRASO.txt";*/
 	
 	
-	// string name_fich_time_rep = "rep_times_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-							// + "e_i" + str_interval1 + "-" + str_interval2 + "-PRUEBA.txt";
+	string name_fich_time_rep = "rep_times_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
+							+ "e_i" + str_interval1 + "-" + str_interval2 + "-PRUEBA.txt";
 
-	// ofstream f_time_rep(name_fich_time_rep);
+	ofstream f_time_rep(name_fich_time_rep);
 
-	// for(int i = 0; i < nIter; i++)
-	// {
-		// f_time_rep << elapsed_times[i] << endl;
-	// }
+	for(int i = 0; i < nIter; i++)
+	{
+		f_time_rep << elapsed_times[i] << endl;
+	}
 
-	// f_time_rep.close();
+	f_time_rep.close();
 	
 
 	/*string name_fich_results = "results_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
 							+ "e_i" + str_interval1 + "-" + str_interval2 + "-FORZANDO-ORDEN-SIN-RETRASO-.txt";*/
 
 								
-	// string name_fich_results = "results_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-							// + "e_i" + str_interval1 + "-" + str_interval2 + "-PRUEBA.txt";
-	// ofstream fresult(name_fich_results);
+	string name_fich_results = "results_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
+							+ "e_i" + str_interval1 + "-" + str_interval2 + "-PRUEBA.txt";
+	ofstream fresult(name_fich_results);
 
-	// fresult << getMedianTimeG(elapsed_times, nIter);
+	fresult << getMedianTimeG(elapsed_times, nIter) << endl;
+	fresult.close();
 
 	
 
