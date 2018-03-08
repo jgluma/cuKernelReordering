@@ -31,6 +31,6 @@ done
 
 # ./timesEstimations 0 4 40 4 ./benchmarks4tasks/ ./tiempos-aleatorios/ 5 uniform 0 0 1000
 
-# ./heuristic 0 4 40 4 ./benchmarks4tasks/ ./tiempos-aleatorios/ 5 uniform 0 0 300
+# ./heuristic 0 4 4 4 ./benchmarks4tasks/ ./tiempos-aleatorios/ 5 uniform 0 0 1 HEURISTIC
 
-# ./execution 0 4 40 4 ./benchmarks4tasks/ ./tiempos-aleatorios/ 5 uniform 0 0 300 HEURISTIC
+# ./execution 0 4 1 4 ./benchmarks4tasks/ ./tiempos-aleatorios/ 5 uniform 0 0 15 HEURISTIC

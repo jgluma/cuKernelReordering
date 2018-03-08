@@ -36,6 +36,8 @@ struct infoCommand{
 	int id_stream;				//ID stream
 	int id_epoch;				//ID epoca
 	int id;						//ID del comando en la simulacion actual.
+	int id_chunk;
+	int id_task;
 	
 	float t_ini;				//Tiempo de inicio del comando
 	float t_fin;				//Tiempo de fin del comando
@@ -50,8 +52,11 @@ struct infoCommand{
 	bool enqueue;				//Flag que indica que el comando debe ser encolado para tener en cuenta en una epoca posterior.
 	bool overlapped;			//Flag que indica que el comando de transferencia esta siendo solapado con otro comando de transferencia. 
 	bool launched;				//Flag que indica que el comando ya ha sido simulado en una epoca anterior.
+	float t_fin_unfair;
+	float t_estimated_dur;
 	
 	std::deque<infoCommand>::iterator next_command;	//Puntero a otro comando debido a que contiene una dependencia.
+	std::deque<infoCommand>::iterator next_command_2;
 };
 
 //Colas de comandos para el simulador
@@ -220,6 +225,1086 @@ int getNumberTypeDominant(int *h_type_dominant, int N, int type_dominant)
 	}
 	
 	return num;
+}
+
+float simulator2CopyEngine_bubble_command_v6_FAIR(float *time_kernels, int chunks_number, float *time_CPU_GPU, 
+						   float *time_GPU_CPU, float *overlapped_time_CPU_GPU, 
+						   float *overlapped_time_GPU_CPU, int *permutation, int *execute_batch, int n_app, 
+						   float t_previous_ini_htd, float t_previous_ini_kernel, float t_previous_ini_dth,
+						   float t_previous_fin_htd, float t_previous_fin_kernel, float t_previous_fin_dth,
+						   float t_previous_overlap_htd, float t_previous_overlap_dth,
+						   float *t_current_ini_htd, float *t_current_ini_kernel, float *t_current_ini_dth,
+						   float *t_current_fin_htd, float *t_current_fin_kernel, float *t_current_fin_dth,
+						   float *t_current_overlap_htd, float *t_current_overlap_dth,
+						   float *t_previous_last_dth_stream, float *t_current_last_dth_stream, int id_epoch)
+{
+	
+	
+	
+	
+	//for(int i = 0; i < nstreams; i++)
+	//	cout << "K " << i << " Tiempo " << time_kernels[i] << endl;
+	int nstreams = n_app;
+	
+	infoCommand kernel_command;
+	infoCommand HTD_command;
+	infoCommand DTH_command;
+	float time_counter = 0;
+	
+	float last_command = 0;
+	
+	//Limpiamos las colas de simulacion
+	deque_simulation_HTD.clear();
+	deque_simulation_K.clear();
+	deque_simulation_DTH.clear();
+	//Limpiamos las colas CURRENT
+	deque_current_HTD.clear();
+	deque_current_K.clear();
+	deque_current_DTH.clear();
+	
+	//Insertamos en las colas de simulacion los comandos de las colas de ejecucion que pertenecen a la epoca anterior.
+	for(deque<infoCommand>::iterator current_HTD = deque_execution_HTD.begin(); current_HTD != deque_execution_HTD.end(); current_HTD++)
+	{
+		HTD_command.id_stream = current_HTD->id_stream;
+		HTD_command.id_epoch = current_HTD->id_epoch;
+		HTD_command.id = current_HTD->id;	
+		HTD_command.ready = true;
+		HTD_command.overlapped = false;
+		HTD_command.enqueue = false;
+		HTD_command.launched = true;
+		HTD_command.t_ini = current_HTD->t_ini;
+		HTD_command.t_fin = current_HTD->t_fin;
+		HTD_command.t_fin_unfair = current_HTD->t_fin_unfair;
+		HTD_command.t_CPU_GPU = current_HTD->t_CPU_GPU;
+		HTD_command.t_overlap_CPU_GPU = current_HTD->t_overlap_CPU_GPU;
+		
+		deque_simulation_HTD.push_back(HTD_command);
+		
+	}
+	
+	for(deque<infoCommand>::iterator current_K = deque_execution_K.begin(); current_K != deque_execution_K.end(); current_K++)
+	{
+		
+		kernel_command.id_stream = current_K->id_stream;
+		kernel_command.id = current_K->id;
+		kernel_command.id_epoch = current_K->id_epoch;
+		kernel_command.ready = false;
+		kernel_command.enqueue = false;
+		kernel_command.launched = true;
+		kernel_command.t_ini = current_K->t_ini;
+		kernel_command.t_fin = current_K->t_fin;
+		kernel_command.t_kernel = current_K->t_kernel;
+		
+		deque_simulation_K.push_back(kernel_command);
+		
+	}
+	
+	for(deque<infoCommand>::iterator current_DTH = deque_execution_DTH.begin(); current_DTH != deque_execution_DTH.end(); current_DTH++)
+	{
+		
+		DTH_command.id_stream = current_DTH->id_stream;
+		DTH_command.id = current_DTH->id;
+		DTH_command.id_task = current_DTH->id_task;
+		DTH_command.id_epoch = current_DTH->id_epoch;
+		DTH_command.ready = false;
+		DTH_command.overlapped = false;
+		DTH_command.enqueue = false;
+		DTH_command.launched = true;
+		DTH_command.active_htd = false;
+		DTH_command.t_ini = current_DTH->t_ini;
+		DTH_command.t_fin = current_DTH->t_fin;
+		DTH_command.t_fin_unfair = current_DTH->t_fin_unfair;
+		DTH_command.t_GPU_CPU = current_DTH->t_GPU_CPU;
+		DTH_command.t_overlap_GPU_CPU = current_DTH->t_overlap_GPU_CPU;
+		
+		deque_simulation_DTH.push_back(DTH_command);
+		
+	}
+		
+	
+	
+	int num_HTD_enqueue = deque_simulation_HTD.size();
+	int num_DTH_enqueue = deque_simulation_DTH.size();
+	int num_K_enqueue = deque_simulation_K.size();
+	
+	
+	//Establecemos las dependencias entre los comandos de las epocas anteriores
+	//HTD->K
+	
+	for(deque<infoCommand>::iterator current_K = deque_simulation_K.begin(); current_K != deque_simulation_K.end(); current_K++)
+	{
+		
+		current_K->ready = true;
+		for(deque<infoCommand>::iterator current_HTD = deque_simulation_HTD.begin(); 
+			current_HTD != deque_simulation_HTD.end(); current_HTD++)
+		{
+			if(current_HTD->id_stream == current_K->id_stream && current_HTD->id_epoch == current_K->id_epoch)
+			{				
+				current_K->ready = false;
+				current_HTD->next_command = current_K;
+				
+			}
+			
+			
+		}
+		
+		
+		
+	}
+	
+	//K->DTH
+	
+	for(deque<infoCommand>::iterator current_DTH = deque_simulation_DTH.begin(); current_DTH != deque_simulation_DTH.end(); current_DTH++)
+	{
+		
+		current_DTH->ready = true;
+		for(deque<infoCommand>::iterator current_K = deque_simulation_K.begin(); 
+			current_K != deque_simulation_K.end(); current_K++)
+		{
+			if(current_K->id_stream == current_DTH->id_stream && current_K->id_epoch == current_DTH->id_epoch)
+			{
+				current_DTH->ready = false;
+				current_K->next_command = current_DTH;
+				
+			}
+			
+			
+		}
+		
+		
+		
+	}
+	
+	int num_tasks = 0;
+	//Introducimos en las colas de simulacion los nuevos comandos
+	for(int i = 0; i < nstreams; i++)
+	{
+				
+			
+			//HTD_command.id_stream = i;
+			HTD_command.id = i;
+			HTD_command.id_stream = execute_batch[permutation[i]];
+			HTD_command.id_epoch = id_epoch;
+			HTD_command.ready = false;
+			HTD_command.overlapped = false;
+			HTD_command.t_ini = INF_TIME;
+			HTD_command.t_fin = INF_TIME;
+			HTD_command.t_CPU_GPU =   time_CPU_GPU[permutation[i]]; //time_CPU_GPU[execute_batch[permutation[i]]];  time_CPU_GPU[i];
+			HTD_command.enqueue = false;
+			HTD_command.launched = false;
+			HTD_command.t_overlap_CPU_GPU =  overlapped_time_CPU_GPU[permutation[i]]; //overlapped_time_CPU_GPU[execute_batch[permutation[i]]]; overlapped_time_CPU_GPU[i];
+		
+			
+			//kernel_command.id_stream = i;
+			kernel_command.id = i;
+			kernel_command.id_stream = execute_batch[permutation[i]];
+			kernel_command.id_epoch = id_epoch;
+			kernel_command.ready = false;
+			kernel_command.t_ini = INF_TIME;
+			kernel_command.t_fin = INF_TIME;
+			kernel_command.t_kernel =    time_kernels[permutation[i]]; //time_kernels[execute_batch[permutation[i]]];  time_kernels[i];
+			kernel_command.enqueue = false;
+			kernel_command.launched = false;
+			
+			
+			
+			//DTH_command.id_stream = i;
+			DTH_command.id = i;
+			DTH_command.id_stream = execute_batch[permutation[i]];
+			DTH_command.id_epoch = id_epoch;
+			DTH_command.id_task = execute_batch[permutation[i]];
+			DTH_command.ready = false;
+			DTH_command.overlapped = false;
+			DTH_command.enqueue = false;
+			DTH_command.active_htd = false;
+			DTH_command.t_ini = INF_TIME;
+			DTH_command.t_fin = INF_TIME;
+			DTH_command.t_GPU_CPU =   time_GPU_CPU[permutation[i]]; //time_GPU_CPU[execute_batch[permutation[i]]]; time_GPU_CPU[i];
+			DTH_command.t_overlap_GPU_CPU = overlapped_time_GPU_CPU[permutation[i]];   //overlapped_time_GPU_CPU[execute_batch[permutation[i]]];  overlapped_time_GPU_CPU[i];
+			DTH_command.launched = false;
+			
+			
+			
+			deque_simulation_HTD.push_back(HTD_command);
+				
+			deque_simulation_K.push_back(kernel_command);
+				
+			deque_simulation_DTH.push_back(DTH_command);
+				
+			num_tasks++;
+			
+	}
+	
+	
+	//Declaramos unos punteros la inicio de los nuevos comandos en las colas.
+	std::deque<infoCommand>::iterator current_K_begin = deque_simulation_K.begin() + num_K_enqueue;
+	std::deque<infoCommand>::iterator current_HTD_begin = deque_simulation_HTD.begin() + num_HTD_enqueue;
+	std::deque<infoCommand>::iterator current_DTH_begin = deque_simulation_DTH.begin() + num_DTH_enqueue;
+	//Declaramos unos punteros para recorrer los nuevos comandos en las colas
+	std::deque<infoCommand>::iterator current_K = deque_simulation_K.begin() + num_K_enqueue;
+	std::deque<infoCommand>::iterator current_HTD = deque_simulation_HTD.begin() + num_HTD_enqueue;
+	std::deque<infoCommand>::iterator current_DTH = deque_simulation_DTH.begin() + num_DTH_enqueue;
+	
+	
+	//Establecemos las dependencias entre los nuevos comandos.
+	//Inicializamos los primeros tiempos de inicio de las colas
+	
+	/*for(int i = 0; i < nstreams; i++)
+	{
+		current_HTD->ready = true;
+		current_HTD++;
+		
+	}*/
+	
+	
+	
+	for(int i = 0; i < nstreams; i++)
+	{
+		current_HTD->ready = true;
+		
+		for(deque<infoCommand>::iterator current_DTH = deque_simulation_DTH.begin(); 
+			current_DTH != current_DTH_begin; current_DTH++)
+		{
+			if(current_DTH->id_stream == current_HTD->id_stream)
+			{
+				//Si existe un DTH perteneciente al stream del HTD
+				current_HTD->ready = false;
+				current_DTH->next_command = current_HTD;
+				current_DTH->active_htd = true;
+				
+			}
+		
+		
+		}
+		
+		current_HTD++;
+		
+	}
+	
+	
+	
+	//HTD->K
+	
+	for(current_HTD = current_HTD_begin; current_HTD != deque_simulation_HTD.end(); current_HTD++)
+	{
+		current_HTD->next_command = current_K;
+		current_K++;
+		
+	}
+	
+	//K->DTH
+	current_DTH = current_DTH_begin;
+
+	for(current_K = current_K_begin; current_K != deque_simulation_K.end(); current_K++)
+	{
+		
+		current_K->next_command = current_DTH;
+		current_DTH++;
+	}
+	
+	
+	
+	//Si NO hay ningun comando en las colas de ejecucion inicializamos time_counter a 0
+	//de lo contrario lo inicializaremos al tiempo de inicio menor entre los comandos de las
+	//colas de ejecucion
+	if(deque_execution_HTD.size() == 0 
+	&& deque_execution_K.size() == 0 
+	&& deque_execution_DTH.size() == 0)
+		time_counter = 0;
+	else
+	{
+		if(deque_execution_HTD.size() != 0)
+			time_counter = deque_execution_HTD.begin()->t_ini;
+		
+		if(time_counter > deque_execution_K.begin()->t_ini && deque_execution_K.size() != 0)
+			time_counter = deque_execution_K.begin()->t_ini;
+		
+		if(time_counter > deque_execution_DTH.begin()->t_ini && deque_execution_DTH.size() != 0)
+			time_counter = deque_execution_DTH.begin()->t_ini;
+		
+	}
+	
+	
+	float *time_queues = (float *)malloc(3*sizeof(float));
+	
+	int i = 0;
+	
+	while(!deque_simulation_HTD.empty() || !deque_simulation_K.empty() || !deque_simulation_DTH.empty())
+	{
+		if(!deque_simulation_HTD.empty())
+			current_HTD = deque_simulation_HTD.begin();
+		if(!deque_simulation_K.empty())
+			current_K = deque_simulation_K.begin();
+		if(!deque_simulation_DTH.empty())
+			current_DTH = deque_simulation_DTH.begin();
+		if(current_DTH->id_task < 0 || current_DTH->id_task > N_TASKS - 1) // BERNABE
+			current_DTH->id_task = current_DTH->id_task % N_TASKS;
+		
+#if PRINT_SIMULATOR_TRACE			
+		printf("\n******************** ITERACION %d ****************\n", i);
+			
+		printf("Estado Colas...\n");
+#endif
+		
+		
+		//Si es un comando de la epoca actual, inicializamos sus tiempos de inicio y fin
+		if(!deque_simulation_HTD.empty() && current_HTD->t_ini == INF_TIME && current_HTD->ready == true)
+		{
+			current_HTD->t_ini = time_counter;
+			
+			//if(t_previous_last_dth_stream[current_HTD->id_stream] > time_counter)
+				//current_HTD->t_ini = t_previous_last_dth_stream[current_HTD->id_stream];
+				
+			current_HTD->t_fin = current_HTD->t_ini + current_HTD->t_CPU_GPU;
+			current_HTD->t_fin_unfair = current_HTD->t_ini + current_HTD->t_CPU_GPU;
+			
+			
+		}
+		
+#if PRINT_SIMULATOR_TRACE
+		printf("HTD t_ini %f t_fin %f Duration %f\n", current_HTD->t_ini, current_HTD->t_fin, current_HTD->t_fin - current_HTD->t_ini);
+#endif
+
+		if(!deque_simulation_K.empty() && current_K->t_ini == INF_TIME && current_K->ready == true)
+		{
+			current_K->t_ini = time_counter;
+			current_K->t_fin = current_K->t_ini + current_K->t_kernel;
+			
+			
+		}
+		
+#if PRINT_SIMULATOR_TRACE
+		printf("K t_ini %f t_fin %f Duration %f\n", current_K->t_ini, current_K->t_fin, current_K->t_fin - current_K->t_ini);
+#endif
+
+		if(!deque_simulation_DTH.empty() && current_DTH->t_ini == INF_TIME && current_DTH->ready == true)
+		{
+			current_DTH->t_ini = time_counter;
+			current_DTH->t_fin = current_DTH->t_ini + current_DTH->t_GPU_CPU;
+			current_DTH->t_fin_unfair = current_DTH->t_ini + current_DTH->t_GPU_CPU;
+			
+			
+		}
+
+#if PRINT_SIMULATOR_TRACE
+		printf("DTH t_ini %f t_fin %f Duration %f\n", current_DTH->t_ini, current_DTH->t_fin, current_DTH->t_fin - current_DTH->t_ini);
+#endif		
+		
+		//SOLAPAMIENTOS ENTRE TRANSFERENCIAS
+		
+		
+		if(!deque_simulation_HTD.empty() && !deque_simulation_DTH.empty()
+		&& current_HTD->t_ini != INF_TIME && current_DTH->t_ini != INF_TIME
+		&& current_HTD->overlapped == false && current_DTH->overlapped == false
+		&& current_HTD->ready == true && current_DTH->ready == true
+		&& (current_HTD->launched == false || current_DTH->launched == false))
+		{
+			
+			//Version 2 solapamiento
+			float time_overlap_CPU_GPU;
+			float time_overlap_GPU_CPU;
+			
+			float t_CPU_GPU = current_HTD->t_CPU_GPU;
+			float t_overlap_CPU_GPU = current_HTD->t_overlap_CPU_GPU;
+			float t_GPU_CPU = current_DTH->t_GPU_CPU;
+			float t_overlap_GPU_CPU = current_DTH->t_overlap_GPU_CPU;
+			
+			
+			//Solapamiento HTD version 2
+			if(current_HTD->t_ini == time_counter)
+			{
+				
+				
+				if(current_DTH->t_fin < current_HTD->t_fin)	//Solapamos solo una parte de la transferencia HTD.
+				{
+								
+								
+					
+					time_overlap_CPU_GPU = ((current_DTH->t_fin - time_counter)*t_overlap_CPU_GPU)/t_CPU_GPU;
+							
+					time_overlap_CPU_GPU = time_overlap_CPU_GPU + (current_HTD->t_fin - current_DTH->t_fin);
+								
+				}
+				else
+				{	
+							
+					
+					//time_overlap_CPU_GPU = overlapped_time_CPU_GPU;
+					time_overlap_CPU_GPU = t_overlap_CPU_GPU;
+				}
+						
+						
+			}
+			else
+			{
+						
+				if(current_DTH->t_fin < current_HTD->t_fin) //Solapamos solo una parte de la transferencia HTD.
+				{
+						
+						time_overlap_CPU_GPU = ((current_DTH->t_fin - time_counter)*t_overlap_CPU_GPU)/t_CPU_GPU;
+							
+						time_overlap_CPU_GPU = (time_counter - current_HTD->t_ini) + time_overlap_CPU_GPU + (current_HTD->t_fin - current_DTH->t_fin);
+							
+							
+				}
+				else
+				{
+								
+							
+						//time_overlap_CPU_GPU = ((current_HTD->t_fin - time_counter)*overlapped_time_CPU_GPU)/time_CPU_GPU;
+						time_overlap_CPU_GPU = ((current_HTD->t_fin - time_counter)*t_overlap_CPU_GPU)/t_CPU_GPU;
+							
+						time_overlap_CPU_GPU  = (time_counter - current_HTD->t_ini) + time_overlap_CPU_GPU;
+								
+							
+				}
+						
+						
+			}
+					
+			//Solapamiento HTD version 2
+			if(current_DTH->t_ini == time_counter)
+			{
+						
+						
+						if(current_HTD->t_fin < current_DTH->t_fin)	//Solapamos solo una parte de la transferencia HTD.
+						{
+							
+								//time_overlap_GPU_CPU = ((current_HTD->t_fin - time_counter)*overlapped_time_GPU_CPU)/time_GPU_CPU;
+								time_overlap_GPU_CPU = ((current_HTD->t_fin - time_counter)*t_overlap_GPU_CPU)/t_GPU_CPU;
+							
+								time_overlap_GPU_CPU = time_overlap_GPU_CPU + (current_DTH->t_fin - current_HTD->t_fin);
+	
+						}
+						else
+						{
+							//time_overlap_GPU_CPU = overlapped_time_GPU_CPU;
+							time_overlap_GPU_CPU = t_overlap_GPU_CPU;
+						
+						}
+			}
+			else
+			{
+						
+						
+						if(current_DTH->t_fin < current_HTD->t_fin) //Solapamos solo una parte de la transferencia HTD.
+						{
+								
+								//float completedPercentage = (time_counter - current_DTH->t_ini)/current_DTH->t_estimated_dur;
+								
+								//float percentageToCompletion = 1 - completedPercentage;
+								
+								//float timeToCompletion = t_overlap_GPU_CPU*percentageToCompletion;
+								
+								//time_overlap_GPU_CPU = (time_counter - current_DTH->t_ini) + timeToCompletion;
+								
+								time_overlap_GPU_CPU = ((current_DTH->t_fin - time_counter)*t_overlap_GPU_CPU)/t_GPU_CPU;
+								time_overlap_GPU_CPU = (time_counter - current_DTH->t_ini) + time_overlap_GPU_CPU;
+								
+							
+							
+						}
+						else
+						{
+								
+								//time_overlap_GPU_CPU = ((current_HTD->t_fin - time_counter)*overlapped_time_GPU_CPU[permutation[current_DTH->id]])/time_GPU_CPU[permutation[current_DTH->id_stream]];
+								
+								
+								time_overlap_GPU_CPU = ((current_HTD->t_fin - time_counter)*t_overlap_GPU_CPU)/t_GPU_CPU;
+								time_overlap_GPU_CPU  = (time_counter - current_DTH->t_ini) + time_overlap_GPU_CPU + (current_DTH->t_fin - current_HTD->t_fin);
+								
+						}
+						
+						
+			}
+			
+			
+			
+			
+			//Si no es la HTD inicial cuya duracion es 0
+			if(current_HTD->t_fin != 0)
+				current_HTD->t_fin = current_HTD->t_ini + time_overlap_CPU_GPU;
+			
+					
+			current_HTD->overlapped = true;
+					
+			//Si no es la DTH inicial cuya duracion es 0
+			if(current_DTH->t_fin != 0)
+				current_DTH->t_fin = current_DTH->t_ini + time_overlap_GPU_CPU;
+					
+			
+			
+			//Si ya se ha planificado una tarea el tiempo de fin unfair solo recogera
+			//los tiempos de solapamiento producidos con comandos lanzados anteriormente
+			//current_HTD->t_fin_unfair = current_HTD->t_fin;
+			//current_DTH->t_fin_unfair = current_DTH->t_fin;
+			
+			
+			
+			/*if(current_HTD->launched == true && current_DTH->launched == false && current_DTH->id  == 0)
+				current_HTD->t_fin_unfair = current_HTD->t_ini + time_overlap_CPU_GPU;
+			
+			if(current_DTH->launched == true && current_HTD->launched == false && current_HTD->id == 0)
+					current_DTH->t_fin_unfair = current_DTH->t_ini + time_overlap_GPU_CPU;
+					
+			if(current_HTD->launched == false && current_DTH->launched == true && current_HTD->id  == 0)
+					current_HTD->t_fin_unfair = current_HTD->t_ini + time_overlap_CPU_GPU;
+			
+			if(current_DTH->launched == false && current_HTD->launched == true && current_DTH->id  == 0)
+					current_DTH->t_fin_unfair = current_DTH->t_ini + time_overlap_GPU_CPU;*/
+			
+			current_HTD->t_fin_unfair = current_HTD->t_ini + time_overlap_CPU_GPU;
+			current_DTH->t_fin_unfair = current_DTH->t_ini + time_overlap_GPU_CPU;
+			
+			
+			
+			current_DTH->overlapped = true;
+			
+			
+#if PRINT_SIMULATOR_TRACE				
+				printf("\tHTD - Epoca: %d - Stream: %d - t_ini: %f - t_fin: %f - Duration: %f - Time Overlap CPU GPU: %f\n", current_HTD->id_epoch, current_HTD->id_stream, current_HTD->t_ini, current_HTD->t_fin, current_HTD->t_fin - current_HTD->t_ini, time_overlap_CPU_GPU);
+				printf("\tDTH - Epoca: %d - Stream: %d - t_ini: %f - t_fin: %f - Duration: %f - Time Overlap GPU CPU: %f\n", current_HTD->id_epoch, current_DTH->id_stream, current_DTH->t_ini, current_DTH->t_fin, current_DTH->t_fin - current_DTH->t_ini, time_overlap_GPU_CPU);
+#endif	
+			
+					
+		}
+		
+		memset(time_queues, INF_TIME, 3*sizeof(float));
+		
+		//Cojemos como time_counter el tiempo final de las colas mas pequeño
+		if(deque_simulation_HTD.empty())
+			time_queues[0] = INF_TIME;
+		else
+			time_queues[0] = current_HTD->t_fin;
+			
+		if(deque_simulation_K.empty())
+			time_queues[1] = INF_TIME;
+		else
+			time_queues[1] = current_K->t_fin;
+			
+		if(deque_simulation_DTH.empty())
+			time_queues[2] = INF_TIME;
+		else
+			time_queues[2] = current_DTH->t_fin;
+			
+		time_counter = getMinTime(time_queues, 3);
+
+#if PRINT_SIMULATOR_TRACE			
+		printf("\nTime Queues:\n");
+		printf("HTD: %f\n", time_queues[0]);
+		printf("K: %f\n", time_queues[1]);
+		printf("DTH: %f\n", time_queues[2]);
+		printf("Time Counter; %f\n", time_counter);
+#endif
+
+		if(!deque_simulation_HTD.empty() && current_HTD->t_fin == time_counter)
+		{	
+			//Si no es un HTD perteneciente a la epoca anterior, resolvemos sus dependencias habilitamos el kernel
+			//if(current_HTD->id_stream != -1)
+				current_HTD->next_command->ready = true;
+			
+#if PRINT_SIMULATOR_TRACE		
+			cout << "\nDesencolando HTD - Epoca " << current_HTD->id_epoch << " - stream " << current_HTD->id_stream << endl;
+			cout <<"\tTiempo ini: " << current_HTD->t_ini << " Tiempo fin: " << current_HTD->t_fin << endl;
+#endif
+			
+			if(!deque_simulation_DTH.empty())
+				current_DTH->overlapped = false;
+				
+			
+			//if(current_HTD->id == 0 && current_HTD->launched == false)
+			if(current_HTD->id == nstreams - 1 && current_HTD->launched == false)
+			{
+				*t_current_ini_htd = current_HTD->t_ini;
+				*t_current_fin_htd = current_HTD->t_fin;
+				
+				
+				//Desencolamos el HTD del stream 0 (tarea primera)
+				//encolamos los comandos K y DTH con id_stream == -1
+				//que serian los comandos de la epoca anterior que todavia
+				//no se han ejecutado
+				infoCommand HTD_command;
+				
+				//HTD
+				HTD_command.id_stream = current_HTD->id_stream;
+				HTD_command.id = -1;
+				HTD_command.id_epoch = current_HTD->id_epoch;
+				HTD_command.ready = current_HTD->ready;
+				HTD_command.overlapped = current_HTD->overlapped;
+				HTD_command.t_ini = current_HTD->t_ini;
+				//Cuando queremos meter un comando en la cola current (posterior cola ejecucion)
+				//su tiempo de fin tiene que ser el tiempo de fin unfair, ya que este tiempo 
+				//solo refleja los incrementos ocasionados con comando lanzados anteriormente
+				//HTD_command.t_fin = current_HTD->t_fin;
+				HTD_command.t_fin = current_HTD->t_fin_unfair;
+				HTD_command.t_fin_unfair = current_HTD->t_fin_unfair;
+				HTD_command.enqueue = true;
+				HTD_command.launched = true;
+				HTD_command.t_CPU_GPU = current_HTD->t_CPU_GPU;
+				HTD_command.t_overlap_CPU_GPU = current_HTD->t_overlap_CPU_GPU;
+				
+
+#if PRINT_SIMULATOR_TRACE		
+			cout << "\nEncolando HTD - Epoca: " <<  HTD_command.id_epoch << " - stream " << HTD_command.id_stream << " en la cola CURRENT HTD" << endl;
+#endif
+				deque_current_HTD.push_back(HTD_command);
+				
+				for(deque<infoCommand>::iterator it_K = deque_simulation_K.begin(); 
+					it_K != deque_simulation_K.end();
+					it_K++)
+				{
+					//Si quedan comandos de kernels por desencolar, activamos su flag de encolamiento
+					//en las colas de CURRENT para tenerlos en cuenta en las proximas epocas
+					
+						
+						it_K->enqueue = true;
+					
+						
+						
+					
+					
+					
+				}
+				
+				//Activamos el flag de encolamiento para el kernel perteneciente a la actual HTD
+				current_HTD->next_command->enqueue = true;
+				
+				//DTH
+				for(deque<infoCommand>::iterator it_DTH = deque_simulation_DTH.begin(); 
+					it_DTH != deque_simulation_DTH.end();
+					it_DTH++)
+				{
+					//Si quedan comandos de DTH por desencolar, activamos su flag de encolamiento
+					//en las colas de CURRENT para tenerlos en cuenta en las proximas epocas
+						
+						
+						it_DTH->enqueue = true;
+					
+					
+				}
+				
+				//Activamos el flag de encolamiento para la DTH
+				current_HTD->next_command->next_command->enqueue = true;
+				
+				//
+			}
+				
+			//Si es una HTD de la epoca anterior, es posible que se haya incrementado al solaparse
+			//con una DTH de la epoca actual, si es asi modificamos los tiempos de inicio y fin
+			// de las HTD de la epoca anterior
+
+			//Si es una HTD de la epoca anterior
+			if(current_HTD->id == -1)
+			{
+				//Modificamos los tiempos de inicio de las HTD pertenecientes
+				//a la epoca anterior
+				float t_fin_htd = current_HTD->t_fin;
+
+				for(deque<infoCommand>::iterator it_HTD = current_HTD + 1; 
+					it_HTD != deque_simulation_HTD.end();
+					it_HTD++)
+				{
+					if(it_HTD->id == -1 && it_HTD->t_ini < t_fin_htd)
+					{
+						float t_dur = it_HTD->t_fin - it_HTD->t_ini;
+
+						it_HTD->t_ini = t_fin_htd;
+						it_HTD->t_fin = it_HTD->t_ini + t_dur;
+
+						
+					}
+
+					t_fin_htd = it_HTD->t_fin;
+					
+				}
+			}
+			//Desencolamos
+			deque_simulation_HTD.pop_front();
+			
+		}
+		
+		if(!deque_simulation_K.empty() && current_K->t_fin == time_counter)
+		{	
+			//Resolvemos sus dependencias si no es un kernel de la epoca anterior
+			//if(current_K->id_stream != -1)
+				current_K->next_command->ready = true;
+
+#if PRINT_SIMULATOR_TRACE	
+			cout << "\nDesencolando K - Epoca: " << current_K->id_epoch << " - Stream " << current_K->id_stream << endl;
+			cout <<"\tTiempo ini: " << current_K->t_ini << " Tiempo fin: " << current_K->t_fin << endl;
+#endif			
+			
+			
+			//if(current_K->id == 0 && current_K->launched == false)
+			if(current_K->id == nstreams - 1 && current_K->launched == false)
+			{
+				*t_current_ini_kernel = current_K->t_ini;
+				*t_current_fin_kernel = current_K->t_fin;
+			}
+			
+			//cout << "\tCurrent Ini K: " << *t_current_ini_kernel << " - Current Fin K: " << *t_current_fin_kernel << endl;
+				
+				
+			//Comprobamos si el flag de encolamiento en las colas CURRENT esta activo
+			if(current_K->enqueue == true)
+			{
+				infoCommand kernel_command;
+				
+				kernel_command.id_stream = current_K->id_stream;
+				kernel_command.id = -1;
+				kernel_command.id_epoch = current_K->id_epoch;
+				kernel_command.ready = current_K->ready;
+				kernel_command.t_ini = current_K->t_ini;
+				kernel_command.t_fin = current_K->t_fin;
+				kernel_command.t_kernel = current_K->t_kernel;
+				kernel_command.launched = true;
+				
+#if PRINT_SIMULATOR_TRACE		
+			cout << "\nEncolando K - Epoca: " << kernel_command.id_epoch << " . stream " << kernel_command.id_stream << " en la cola CURRENT K" << endl;
+#endif
+
+				deque_current_K.push_back(kernel_command);
+			}
+			
+			//Desencolamos
+			deque_simulation_K.pop_front();
+		}
+		
+		if(!deque_simulation_DTH.empty() && current_DTH->t_fin == time_counter)
+		{	
+			
+			//Desencolamos
+#if PRINT_SIMULATOR_TRACE
+			cout << "\nDesencolando DTH - Epoca: " << current_DTH->id_epoch << " - stream " << current_DTH->id_stream << " Proceso " << current_DTH->id_task << endl;
+			cout <<"\tTiempo ini: " << current_DTH->t_ini << " Tiempo fin: " << current_DTH->t_fin << endl;
+#endif			
+			//Reseteamos el flag de solapamiento de la actual HTD
+			if(!deque_simulation_HTD.empty())
+				current_HTD->overlapped = false;
+				
+			
+			if(current_DTH->launched == false)
+				t_current_last_dth_stream[current_DTH->id_task] = current_DTH->t_fin_unfair;
+			
+			//if(current_DTH->id == 0 && current_DTH->launched == false)
+			if(current_DTH->id == nstreams - 1 && current_DTH->launched == false)
+			{
+				*t_current_ini_dth = current_DTH->t_ini;
+				*t_current_fin_dth = current_DTH->t_fin_unfair; 
+				
+			}
+			
+			//Comprobamos si el flag de encolamiento en las colas CURRENT esta activo
+			if(current_DTH->enqueue == true)
+			{
+				infoCommand DTH_command;
+				
+				DTH_command.id_stream = current_DTH->id_stream;
+				DTH_command.id = -1;
+				DTH_command.id_epoch = current_DTH->id_epoch;
+				DTH_command.id_task = current_DTH->id_task;
+				DTH_command.ready = current_DTH->ready;
+				DTH_command.enqueue = true;
+				DTH_command.launched = true;
+				DTH_command.overlapped = false; //current_DTH->overlapped;
+				DTH_command.t_ini = current_DTH->t_ini;
+				//Cuando queremos meter un comando en la cola current (posterior cola ejecucion)
+				//su tiempo de fin tiene que ser el tiempo de fin unfair, ya que este tiempo 
+				//solo refleja los incrementos ocasionados con comando lanzados anteriormente
+				//DTH_command.t_fin = current_DTH->t_fin;
+				DTH_command.t_fin = current_DTH->t_fin_unfair;
+				DTH_command.t_fin_unfair = current_DTH->t_fin_unfair;
+				DTH_command.t_GPU_CPU = current_DTH->t_GPU_CPU;
+				DTH_command.t_overlap_GPU_CPU = current_DTH->t_overlap_GPU_CPU;
+				
+#if PRINT_SIMULATOR_TRACE		
+			cout << "\nEncolando DTH  - Epoca: " << DTH_command.id_epoch << " - stream " << DTH_command.id_stream << " en la cola CURRENT DTH" << endl;
+#endif
+
+				deque_current_DTH.push_back(DTH_command);
+			}
+			
+			//Comprobamos si el DTH tiene activo su flag de dependencia. Si tiene activo este flag
+			//significa que tiene que activar a un HTD
+			if(current_DTH->active_htd == true)
+			{
+				
+				current_DTH->next_command->ready = true;
+				current_DTH->active_htd = false;
+			}
+				
+			//Si es una DTH de la epoca anterior, es posible que se haya incrementado al solaparse
+			//con una HTD de la epoca actual, si es asi modificamos los tiempos de inicio y fin
+			// de las DTH de la epoca anterior
+
+			//Si es una DTH de la epoca anterior
+			if(current_DTH->id == -1)
+			{
+				//Modificamos los tiempos de inicio de las DTH pertenecientes
+				//a la epoca anterior
+				float t_fin_dth = current_DTH->t_fin;
+
+				for(deque<infoCommand>::iterator it_DTH = current_DTH + 1; 
+					it_DTH != deque_simulation_DTH.end();
+					it_DTH++)
+				{
+					if(it_DTH->id == -1 && it_DTH->t_ini < t_fin_dth)
+					{
+						float t_dur = it_DTH->t_fin - it_DTH->t_ini;
+
+						it_DTH->t_ini = t_fin_dth;
+						it_DTH->t_fin = it_DTH->t_ini + t_dur;
+
+						
+					}
+
+					t_fin_dth = it_DTH->t_fin;
+					
+				}
+			}
+			
+			
+				
+			deque_simulation_DTH.pop_front();
+		}
+		
+#if PRINT_SIMULATOR_TRACE
+		printf("*******************************************\n");
+		printf("Pulse una tecla para continuar...\n");
+		char c = getchar();
+#endif
+		i++;
+		
+		
+		
+	}
+	
+	
+	
+	return time_counter;
+	
+	
+	
+	
+}
+
+void bubble_sort(float *list, int *index)
+{
+	float aux;
+	int indexAux;
+
+	for (int i = 0 ; i < ( N_TASKS - 1 ); i++){
+		for (int j = 0 ; j < N_TASKS - i - 1; j++){
+			if (list[j] < list[j+1]){
+				aux       = list[j];
+				list[j]   = list[j+1];
+				list[j+1] = aux;
+				
+				indexAux       = index[j];
+				index[j]   = index[j+1];
+				index[j+1] = indexAux;
+			}
+		}
+	}
+}
+
+float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float *estimated_time_HTD_per_stream_execute, 
+			float *estimated_time_DTH_per_stream_execute, float *estimated_overlapped_time_HTD_per_stream_execute, 
+			float *estimated_overlapped_time_DTH_per_stream_execute, float t_previous_ini_htd, float t_previous_ini_kernel,
+			float t_previous_ini_dth, float t_previous_fin_htd, float t_previous_fin_kernel, float t_previous_fin_dth,
+			float t_previous_overlap_htd, float t_previous_overlap_dth, float *t_current_ini_htd, float *t_current_ini_kernel, 
+			float *t_current_ini_dth, float *t_current_fin_htd, float *t_current_fin_kernel, float *t_current_fin_dth,
+			float *t_current_overlap_htd, float *t_current_overlap_dth, float *t_previous_last_dth_stream, float *t_current_last_dth_stream,
+			int id_epoch)
+{
+	/***************** NEH *****************/
+	float *total_time_tasks = new float[N_TASKS];
+	int *index_tasks = new int[N_TASKS];
+	int *order_tasks = new int[N_TASKS];
+	int *new_order_tasks = new int[N_TASKS];
+	float *permutation_times = new float[N_TASKS];
+	int iBestTime;
+	float bestTime;
+	float time_counter = 0;
+	
+	// cout << "TIEMPOS DE TAREAS" << endl;
+	// cout << "-----------------" << endl;
+	// for(int app = 0; app < N_TASKS; app++){
+		// cout << "TAREA " << app << endl;
+		// cout << "-------" << endl;
+		// cout << "HTD: " << estimated_time_HTD_per_stream_execute[app] << endl;
+		// cout << "KERNEL: " << h_time_kernels_tasks_execute[app] << endl;
+		// cout << "DTH: " << estimated_time_DTH_per_stream_execute[app] << endl;
+	// }
+	
+	// cout << "ORIGINAL" << endl;
+	// cout << "--------" << endl;
+	for(int app = 0; app < N_TASKS; app++){
+		total_time_tasks[app] = estimated_time_HTD_per_stream_execute[app] +
+								h_time_kernels_tasks_execute[app] +
+								estimated_time_DTH_per_stream_execute[app];
+		index_tasks[app] = app;
+		// cout << index_tasks[app] << ": " << total_time_tasks[app] << endl;
+	}
+	
+	bubble_sort(total_time_tasks, index_tasks);
+	
+	// cout << "ORDENADO" << endl;
+	// cout << "--------" << endl;
+	// for(int app = 0; app < N_TASKS; app++){
+		// cout << index_tasks[app] << ": " << total_time_tasks[app] << endl;
+	// }		
+	
+	order_tasks[0] = index_tasks[0];
+	order_tasks[1] = index_tasks[1];
+	
+	// cout << "ORDEN S1" << endl;
+	// cout << "--------" << endl;
+	// cout << order_tasks[0] << endl;
+	// cout << order_tasks[1] << endl;
+	
+	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
+								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
+								estimated_overlapped_time_DTH_per_stream_execute, order_tasks,
+								order_tasks, 2,
+								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
+								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
+								t_previous_overlap_htd, t_previous_overlap_dth,
+								t_current_ini_htd, t_current_ini_kernel, t_current_ini_dth,
+								t_current_fin_htd, t_current_fin_kernel, t_current_fin_dth,
+								t_current_overlap_htd, t_current_overlap_dth,
+								t_previous_last_dth_stream, t_current_last_dth_stream, id_epoch);
+								
+	// cout << "PERMUTATION TIME" << endl;
+	// cout << "----------------" << endl;
+	// cout << permutation_times[0] << endl;
+	
+	order_tasks[0] = index_tasks[1];
+	order_tasks[1] = index_tasks[0];
+	
+	// cout << "ORDEN S2" << endl;
+	// cout << "--------" << endl;
+	// cout << order_tasks[0] << endl;
+	// cout << order_tasks[1] << endl;
+
+	permutation_times[1] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
+								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
+								estimated_overlapped_time_DTH_per_stream_execute, order_tasks,
+								order_tasks, 2,
+								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
+								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
+								t_previous_overlap_htd, t_previous_overlap_dth,
+								t_current_ini_htd, t_current_ini_kernel, t_current_ini_dth,
+								t_current_fin_htd, t_current_fin_kernel, t_current_fin_dth,
+								t_current_overlap_htd, t_current_overlap_dth,
+								t_previous_last_dth_stream, t_current_last_dth_stream, id_epoch);
+								
+	// cout << "PERMUTATION TIME" << endl;
+	// cout << "----------------" << endl;
+	// cout << permutation_times[1] << endl;
+	
+	if(permutation_times[0] < permutation_times[1]){
+		order_tasks[0] = index_tasks[0];
+		order_tasks[1] = index_tasks[1];
+	}
+	
+	// cout << "ORDEN S1 O S2" << endl;
+	// cout << "-------------" << endl;
+	// cout << order_tasks[0] << endl;
+	// cout << order_tasks[1] << endl;
+	
+	for(int i = 2; i < N_TASKS; i++){
+		// cout << "TASK " << i << endl;
+		// cout << "******" << endl;
+		
+		for(int k = 0; k <= i; k++){
+			for(int j = i; j > k; j--)
+				new_order_tasks[j] = order_tasks[j - 1];
+				
+			new_order_tasks[k] = index_tasks[i];
+			
+			for(int j = k - 1; j >= 0; j--)
+				new_order_tasks[j] = order_tasks[j];
+			
+			// cout << "PERMUTATION" << endl;
+			// cout << "-----------" << endl;
+			// for(int j = 0; j <= i; j++)
+				// cout << new_order_tasks[j] << endl;
+
+			permutation_times[k] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
+								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute, 
+								estimated_overlapped_time_DTH_per_stream_execute, new_order_tasks, 
+								new_order_tasks, i+1, 
+								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
+								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
+								t_previous_overlap_htd, t_previous_overlap_dth,
+								t_current_ini_htd, t_current_ini_kernel, t_current_ini_dth,
+								t_current_fin_htd, t_current_fin_kernel, t_current_fin_dth,
+								t_current_overlap_htd, t_current_overlap_dth,
+								t_previous_last_dth_stream, t_current_last_dth_stream, id_epoch);
+								
+			// cout << "TIEMPO " << k << endl;
+			// cout << "--------" << endl;
+			// cout << permutation_times[k] << endl;
+		}
+		
+		iBestTime = 0;
+		bestTime = permutation_times[0];
+		
+		for(int j = 1; j <= i; j++){
+			if(bestTime >= permutation_times[j]){
+				iBestTime = j;
+				bestTime = permutation_times[j];
+			}
+		}
+		
+		for(int j = i; j > iBestTime; j--)
+			order_tasks[j] = order_tasks[j - 1];
+		
+		order_tasks[iBestTime] = index_tasks[i];
+		
+		// cout << "MEJOR ORDEN" << endl;
+		// cout << "-----------" << endl;
+		// for(int j = 0; j <= i; j++)
+			// cout << order_tasks[j] << endl;
+	}
+	
+	/**** AÑADIR AQUI UNA NUEVA SIMULACION PARA TENER LOS ÚLTIMOS DATOS ****/
+	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
+								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute, 
+								estimated_overlapped_time_DTH_per_stream_execute, order_tasks, 
+								order_tasks, N_TASKS,
+								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
+								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
+								t_previous_overlap_htd, t_previous_overlap_dth,
+								t_current_ini_htd, t_current_ini_kernel, t_current_ini_dth,
+								t_current_fin_htd, t_current_fin_kernel, t_current_fin_dth,
+								t_current_overlap_htd, t_current_overlap_dth,
+								t_previous_last_dth_stream, t_current_last_dth_stream, id_epoch);
+								
+	time_counter = permutation_times[0];
+
+	// cout << "ORDEN FINAL" << endl;
+	// cout << "-----------" << endl;
+	// for(int i = 0; i < N_TASKS; i++)
+		// cout << order_tasks[i] << endl;
+		
+	for(int i = 0; i < N_TASKS; i++)
+		h_order_processes[i] = order_tasks[i];
+
+	// cout << "ORDEN TASKS" << endl;
+	// cout << "-----------" << endl;
+	// for(int i = 0; i < N_TASKS; i++)
+		// cout << h_order_processes[i] << endl;
+	
+	delete [] total_time_tasks;
+	delete [] index_tasks;
+	delete [] order_tasks;
+	delete [] new_order_tasks;
+	delete [] permutation_times;
+	/***************************************/
+	
+	return time_counter;
 }
 
 float heuristic(int *h_order_processes, int n_app, int *execute_batch, float *time_kernel_tasks, float *time_HTD_tasks, 
@@ -2010,6 +3095,14 @@ int main(int argc, char *argv[])
 	string str_interval2(argv[10]);			//Maximum time interval
 	string str_heuristic(argv[12]);			//Heuristic used
 	
+	int heu;
+	if (str_heuristic == "HEURISTIC")
+		heu = 1;
+	else{
+		if (str_heuristic == "NEH")
+			heu = 2;
+	}
+	
 	float *elapsed_times = new float[nIter];	//Execution times
 	
 	for(int iter = 0; iter < nIter; iter++){
@@ -2075,10 +3168,12 @@ int main(int argc, char *argv[])
 		float t_previous_ini_htd, t_previous_fin_htd;
 		float t_previous_ini_kernel, t_previous_fin_kernel;
 		float t_previous_ini_dth, t_previous_fin_dth;
+		float t_previous_overlap_htd, t_previous_overlap_dth;
 		
 		float t_current_ini_htd, t_current_fin_htd;
 		float t_current_ini_kernel, t_current_fin_kernel;
 		float t_current_ini_dth, t_current_fin_dth;
+		float t_current_overlap_htd, t_current_overlap_dth;
 	  
 		float *t_previous_last_dth_stream = new float[nstreams];
 		memset(t_previous_last_dth_stream, 0, nstreams * sizeof(float));
@@ -2103,20 +3198,42 @@ int main(int argc, char *argv[])
 			estimated_overlapped_time_HTD_per_stream_execute[app] = estimated_overlapped_time_HTD[app];
 			estimated_overlapped_time_DTH_per_stream_execute[app] = estimated_overlapped_time_DTH[app];
 		}
+		
+		float time_simulation = 0;
 	 
 		for(int epoch = 0; epoch < nepoch; epoch++){	
 			//Launching Heuristic
-			float time_simulation = heuristic(h_order_processes, scheduling_batch, execute_batch,
-											  h_time_kernels_tasks_execute, estimated_time_HTD_per_stream_execute, 
-											  estimated_time_DTH_per_stream_execute, 
-											  estimated_overlapped_time_HTD_per_stream_execute,
-											  estimated_overlapped_time_DTH_per_stream_execute,
-											  scheduling_batch, 
-											  t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
-											  t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
-											  &t_current_ini_htd, &t_current_ini_kernel, &t_current_ini_dth,
-											  &t_current_fin_htd, &t_current_fin_kernel, &t_current_fin_dth,
-											  t_previous_last_dth_stream, t_current_last_dth_stream, scheduled_tasks/nstreams);
+			switch (heu){
+				case 1:
+					time_simulation = heuristic(h_order_processes, scheduling_batch, execute_batch,
+												h_time_kernels_tasks_execute, estimated_time_HTD_per_stream_execute, 
+												estimated_time_DTH_per_stream_execute, 
+												estimated_overlapped_time_HTD_per_stream_execute,
+												estimated_overlapped_time_DTH_per_stream_execute,
+												scheduling_batch, 
+												t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
+												t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
+												&t_current_ini_htd, &t_current_ini_kernel, &t_current_ini_dth,
+												&t_current_fin_htd, &t_current_fin_kernel, &t_current_fin_dth,
+												t_previous_last_dth_stream, t_current_last_dth_stream, scheduled_tasks/nstreams);
+				break;
+				case 2:
+					time_simulation = neh_F3(h_order_processes, h_time_kernels_tasks_execute, estimated_time_HTD_per_stream_execute, 
+											estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
+											estimated_overlapped_time_DTH_per_stream_execute, t_previous_ini_htd, t_previous_ini_kernel,
+											t_previous_ini_dth, t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth, 
+											t_previous_overlap_htd, t_previous_overlap_dth, &t_current_ini_htd, &t_current_ini_kernel, 
+											&t_current_ini_dth, &t_current_fin_htd, &t_current_fin_kernel, &t_current_fin_dth, 
+											&t_current_overlap_htd, &t_current_overlap_dth, t_previous_last_dth_stream, 
+											t_current_last_dth_stream, scheduled_tasks/nstreams);
+				break;
+				default:
+					cout << "Choose a correct heuristic:" << endl;
+					cout << "HEURISTIC" << endl;
+					cout << "NEH" << endl;
+				break;
+			}
+			
 
 			cerr << "Time Simulation: " << time_simulation << endl;
 			
