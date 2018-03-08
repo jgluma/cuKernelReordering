@@ -1989,11 +1989,11 @@ float heuristic(int *h_order_processes, int n_app, int *execute_batch, float *ti
  */
 int main(int argc, char *argv[])
 {
-	if(argc != 12)
+	if(argc != 13)
 	{
-		cout << "Execute: <program> <gpu> <nproducer> <nepoch> <max_tam_batch> <task_file_path>"; 
-		cout << " <time_file_path> <benchmark> <ditribution_type> <interval1> <interval2> <nIter>" << endl;
-		exit(EXIT_SUCCESS);
+	  cout << "Execute: <program> <gpu> <nproducer> <nepoch> <max_tam_batch> <task_file_path> <time_file_path>"; 
+	  cout << " <benchmark> <ditribution_type> <interval1> <interval2> <nIter> <heuristic>" << endl;
+	  exit(EXIT_SUCCESS);
 	}
 
 	int gpu           = atoi(argv[1]);		//GPU id
@@ -2008,6 +2008,7 @@ int main(int argc, char *argv[])
 	string str_type_distribution(argv[8]);	//Type of the time distribution
 	string str_interval1(argv[9]);			//Minimum time interval
 	string str_interval2(argv[10]);			//Maximum time interval
+	string str_heuristic(argv[12]);			//Heuristic used
 	
 	float *elapsed_times = new float[nIter];	//Execution times
 	
@@ -2054,7 +2055,7 @@ int main(int argc, char *argv[])
 		
 		string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_uniform_"
 										+ to_string(N_TASKS) + "p_i" + str_interval1 + "-" + str_interval2
-										+ "-" + hostname + "-" + prop.name + "-HEURISTICO.txt";
+										+ "-" + hostname + "-" + prop.name + ".txt";
 		ifstream archivo_entrada(name_matrixTasks_file);
 		string linea;
 		int app = 0;
@@ -2122,7 +2123,7 @@ int main(int argc, char *argv[])
 			string name_orderTasks_file = "Order-Tasks_bench" + to_string(benchmark) + "_uniform_"
 										+ to_string(nepoch) + "e_"
 										+ to_string(N_TASKS) + "p_i0-0-" + hostname + "-"
-										+ prop.name + "-HEURISTICO.txt";
+										+ prop.name + "-" + str_heuristic + ".txt";
 			ofstream order_file(name_orderTasks_file);
 			for(int app = 0; app < N_TASKS; app++)
 				order_file << h_order_processes[app] << " ";

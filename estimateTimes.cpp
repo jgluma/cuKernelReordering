@@ -1139,7 +1139,7 @@ int main(int argc, char *argv[])
 
 	string name_matrixTasks_file = "Matrix-Tasks_bench" + to_string(benchmark) + "_" + str_type_distribution 
 									+ "_" + to_string(nproducer) + "p_i" + str_interval1 + "-" + str_interval2
-									+ "-" + hostname + "-" + prop.name + "-HEURISTICO.txt";
+									+ "-" + hostname + "-" + prop.name + ".txt";
 
 	ofstream fich_tasks_matrix(name_matrixTasks_file);
 	

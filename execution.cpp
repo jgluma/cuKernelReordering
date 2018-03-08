@@ -1367,10 +1367,10 @@ void setFileIdTasks(string &name, int benchmark, int nproducer)
  */
 int main(int argc, char *argv[])
 {
-	if(argc != 12)
+	if(argc != 13)
 	{
-	  cout << "Execute: <program> <gpu> <nproducer> <nepoch> <max_tam_batch> <task_file_path>"; 
-	  cout << " <time_file_path> <benchmark> <ditribution_type> <interval1> <interval2> <nIter>" << endl;
+	  cout << "Execute: <program> <gpu> <nproducer> <nepoch> <max_tam_batch> <task_file_path> <time_file_path>"; 
+	  cout << " <benchmark> <ditribution_type> <interval1> <interval2> <nIter> <heuristic>" << endl;
 	  exit(EXIT_SUCCESS);
 	}
 
@@ -1386,6 +1386,7 @@ int main(int argc, char *argv[])
 	string str_type_distribution(argv[8]);	//Type of the time distribution
 	string str_interval1(argv[9]);			//Minimum time interval
 	string str_interval2(argv[10]);			//Maximum time interval
+	string str_heuristic(argv[12]);			//Heuristic used
 	
 	int *h_order = new int [N_TASKS * nepoch];
 	
@@ -1402,7 +1403,7 @@ int main(int argc, char *argv[])
 		string name_orderTasks_file = "Order-Tasks_bench" + to_string(benchmark) + "_uniform_"
 									+ to_string(epoch+1) + "e_"
 									+ to_string(N_TASKS) + "p_i0-0-" + hostname + "-"
-									+ prop.name + "-HEURISTICO.txt";
+									+ prop.name + "-" + str_heuristic + ".txt";
 		ifstream order_file(name_orderTasks_file);
 		
 		string linea;
@@ -1510,7 +1511,7 @@ int main(int argc, char *argv[])
 	}
 	
 	string name_fich_time_rep = "rep_times_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-							+ "e_i" + str_interval1 + "-" + str_interval2 + "-PRUEBA.txt";
+							+ "e_i" + str_interval1 + "-" + str_interval2 + "-" + str_heuristic + ".txt";
 	
 	ofstream f_time_rep(name_fich_time_rep);
 
@@ -1522,7 +1523,7 @@ int main(int argc, char *argv[])
 	f_time_rep.close();
 						
 	string name_fich_results = "results_benchmark_" + to_string(benchmark) + "_" + to_string(nproducer) + "p_" + to_string(nepoch) 
-							+ "e_i" + str_interval1 + "-" + str_interval2 + "-PRUEBA.txt";
+							+ "e_i" + str_interval1 + "-" + str_interval2 + "-" + str_heuristic + ".txt";
 	ofstream fresult(name_fich_results);
 
 	fresult << getMedianTimeG(elapsed_times, nIter) << endl;

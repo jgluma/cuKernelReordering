@@ -6,6 +6,6 @@ do
 	for epoch in `seq 1 4`
 	do
 		echo "EPOCH: " $epoch
-		cat Order-Tasks_bench$benchmark\_uniform_$epoch\e_4p_i0-0-mistral-Tesla\ K20c-HEURISTICO.txt
+		cat Order-Tasks_bench$benchmark\_uniform_$epoch\e_4p_i0-0-mistral-Tesla\ K20c-HEURISTIC.txt
 	done
 done
