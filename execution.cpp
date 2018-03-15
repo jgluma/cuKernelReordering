@@ -527,7 +527,8 @@ void launching_applications_2CopyEngines_SIN_HYPERQ(cudaStream_t *streams, int *
 	{
 		int tid = idx_processes[i];
 		
-		int id_task = execution_batch.getProcessTaskBatch(tid);
+		//int id_task = execution_batch.getProcessTaskBatch(tid);
+		int id_task = tid;
 		
 		//if(launching_per_thread[tid] == 0)
 			//task_timer[tid].setTaskLaunchTime();
@@ -587,7 +588,8 @@ void launching_applications_2CopyEngines(cudaStream_t *streams, int *idx_process
 	{
 		int tid = idx_processes[i];
 		
-		int id_task = execution_batch.getProcessTaskBatch(tid);
+		//int id_task = execution_batch.getProcessTaskBatch(tid);
+		int id_task = tid;
 
 		//Si no es la primera HTD, entonces se espera a que la HTD anterior termine.
 		if(i != 0)
@@ -680,14 +682,11 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 		cudaEventCreate(&dth_end[i]);
 		cudaEventCreate(&kernel_end[i]);
   	}
-	
-	fb.seekg (0, fb.beg);
 
   	//Vector synthetic tasks
 	vector <Task *> tasks_v;
 
 	//Alloc Host memory
-	
   	allocHostMemory(N_TASKS, fb, tasks_v, gpu);
 
   	//Alloc Device memory
@@ -746,6 +745,10 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 
 			for(int app = 0; app < N_TASKS; app++)
 				h_order_processes[app] = selected_order[epoch * N_TASKS + app];
+				
+			// for(int app = 0; app < N_TASKS; app++)
+				// cout << h_order_processes[app] << " ";
+			// cout << endl;
 			
 			//Lanzamos la epoca actual con su orden 
 			launching_applications_2CopyEngines_SIN_HYPERQ(streams, h_order_processes,
@@ -1367,6 +1370,8 @@ void setFileIdTasks(string &name, int benchmark, int nproducer)
  */
 int main(int argc, char *argv[])
 {
+	setenv("CUDA_DEVICE_MAX_CONNECTIONS", "1", 1);
+
 	if(argc != 13)
 	{
 	  cout << "Execute: <program> <gpu> <nproducer> <nepoch> <max_tam_batch> <task_file_path> <time_file_path>"; 
