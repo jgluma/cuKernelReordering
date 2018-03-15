@@ -655,18 +655,12 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
   	int *h_order_processes = new int [nstreams];
   	//Processes order vector in the execute batch.
   	int *execute_batch = new int [nstreams];
-
-  	//CUDA event default stream
-  	cudaEvent_t start_event, stop_event;
-  
-  	cudaEventCreate(&start_event);
-  	cudaEventCreate(&stop_event);
   
   	cudaEvent_t evt_finish;				//CUDA event for the last HTD belonging to the current epoch.
   	cudaEvent_t evt_finish_launch;		//CUDA event for the last DTH belonging to the previous epoch.
   
-  	cudaEventCreate(&evt_finish);
-  	cudaEventCreate(&evt_finish_launch);
+  	cudaEventCreate(&evt_finish, cudaEventDisableTiming);
+  	cudaEventCreate(&evt_finish_launch, cudaEventDisableTiming);
   
   	//CUDA event for the HTD commands.
   	cudaEvent_t *htd_end =  (cudaEvent_t *)malloc(nstreams*sizeof(cudaEvent_t));
@@ -678,9 +672,9 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
   	//Creamos los eventos para sincronizar las HTD
   	for(int i = 0; i < nstreams; i++)
   	{
-		cudaEventCreate(&htd_end[i]);
-		cudaEventCreate(&dth_end[i]);
-		cudaEventCreate(&kernel_end[i]);
+		cudaEventCreate(&htd_end[i], cudaEventDisableTiming);
+		cudaEventCreate(&dth_end[i], cudaEventDisableTiming);
+		cudaEventCreate(&kernel_end[i], cudaEventDisableTiming);
   	}
 
   	//Vector synthetic tasks
@@ -760,7 +754,7 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 			scheduling_batch.cleanBatch();
 
 			//Esperamos a que termine el ultimo HTD para volver a planificar
-			while(cudaEventQuery(evt_finish) != cudaSuccess);
+			cudaEventSynchronize(evt_finish);
 		}
 	}
 
@@ -796,8 +790,6 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 
   	cudaEventDestroy(evt_finish);
   	cudaEventDestroy(evt_finish_launch);
-  	cudaEventDestroy(start_event);
-  	cudaEventDestroy(stop_event);
   
   	for(int i = 0; i < nstreams; i++)
   	{
@@ -1370,7 +1362,7 @@ void setFileIdTasks(string &name, int benchmark, int nproducer)
  */
 int main(int argc, char *argv[])
 {
-	setenv("CUDA_DEVICE_MAX_CONNECTIONS", "1", 1);
+	setenv("CUDA_DEVICE_MAX_CONNECTIONS", "2", 1);
 
 	if(argc != 13)
 	{

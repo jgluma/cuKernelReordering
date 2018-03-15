@@ -111,15 +111,14 @@ void PathFinder::launch_kernel_Async(cudaStream_t stream)
     
     int src = 1, dst = 0;
 
-    for (int t = 0; t < rows-1; t+=pyramid_height) {
+    
             int temp = src;
             src = dst;
             dst = temp;
-            dynproc_kernel<<<dimGrid, dimBlock, 0, stream>>>(
-                MIN_PATH_FINDER(pyramid_height, rows-t-1), 
+            dynproc_kernel<<<dimGrid, dimBlock, 0, stream>>>( 
                 gpuWall, gpuResult[src], gpuResult[dst],
-                cols,rows, t, borderCols);
-    }
+                cols,rows, borderCols, pyramid_height);
+    
 
     final_ret = dst;
 	
@@ -132,15 +131,14 @@ void PathFinder::launch_kernel(void)
     
     int src = 1, dst = 0;
 
-    for (int t = 0; t < rows-1; t+=pyramid_height) {
+    
             int temp = src;
             src = dst;
             dst = temp;
-            dynproc_kernel<<<dimGrid, dimBlock>>>(
-                MIN_PATH_FINDER(pyramid_height, rows-t-1), 
+            dynproc_kernel<<<dimGrid, dimBlock>>>( 
                 gpuWall, gpuResult[src], gpuResult[dst],
-                cols,rows, t, borderCols);
-    }
+                cols,rows, borderCols, pyramid_height);
+    
 
     final_ret = dst;
         

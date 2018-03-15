@@ -85,6 +85,7 @@ ifeq ($(dbg),1)
 else
       TARGET := release
 endif
+NVCCFLAGS += -g -G
 
 ALL_CCFLAGS :=
 ALL_CCFLAGS += $(NVCCFLAGS) -std=c++11
@@ -210,9 +211,10 @@ run: build
 	./streamsModel-VCPP
 	./timesEstimations
 	./heuristic
+	./execution
 
 clean:
-	rm -f streamsModel-VCPP timesEstimations heuristic *.o
+	rm -f streamsModel-VCPP timesEstimations heuristic execution *.o
 
 clobber: clean
 

@@ -49,8 +49,8 @@ __device__ inline float cndGPU(float d)
 // Black-Scholes formula for both call and put
 ///////////////////////////////////////////////////////////////////////////////
 __device__ inline void BlackScholesBodyGPU(
-    float &CallResult,
-    float &PutResult,
+    float *CallResult,
+    float *PutResult,
     float S, //Stock price
     float X, //Option strike
     float T, //Option years
@@ -70,8 +70,8 @@ __device__ inline void BlackScholesBodyGPU(
 
     //Calculate Call and Put simultaneously
     expRT = __expf(- R * T);
-    CallResult = S * CNDD1 - X * expRT * CNDD2;
-    PutResult  = X * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1);
+    *CallResult = S * CNDD1 - X * expRT * CNDD2;
+    *PutResult  = X * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1);
 }
 
 
@@ -87,7 +87,8 @@ __global__ void BlackScholesGPU(
     float2 * __restrict d_OptionYears,
     float Riskfree,
     float Volatility,
-    int optN
+    int optN,
+	int num_iterations
 )
 {
     ////Thread index
@@ -95,34 +96,38 @@ __global__ void BlackScholesGPU(
     ////Total number of threads in execution grid
     //const int THREAD_N = blockDim.x * gridDim.x;
 
-    const int opt = blockDim.x * blockIdx.x + threadIdx.x;
+	for(int i = 0; i < num_iterations; i++){
+	
+		const int opt = blockDim.x * blockIdx.x + threadIdx.x;
 
-     // Calculating 2 options per thread to increase ILP (instruction level parallelism)
-    if (opt < (optN / 2))
-    {
-        float callResult1, callResult2;
-        float putResult1, putResult2;
-        BlackScholesBodyGPU(
-            callResult1,
-            putResult1,
-            d_StockPrice[opt].x,
-            d_OptionStrike[opt].x,
-            d_OptionYears[opt].x,
-            Riskfree,
-            Volatility
-        );
-        BlackScholesBodyGPU(
-            callResult2,
-            putResult2,
-            d_StockPrice[opt].y,
-            d_OptionStrike[opt].y,
-            d_OptionYears[opt].y,
-            Riskfree,
-            Volatility
-        );
-        d_CallResult[opt] = make_float2(callResult1, callResult2);
-        d_PutResult[opt] = make_float2(putResult1, putResult2);
-	 }
+		 // Calculating 2 options per thread to increase ILP (instruction level parallelism)
+		if (opt < (optN / 2))
+		{
+			float callResult1, callResult2;
+			float putResult1, putResult2;
+			BlackScholesBodyGPU(
+				&callResult1,
+				&putResult1,
+				d_StockPrice[opt].x,
+				d_OptionStrike[opt].x,
+				d_OptionYears[opt].x,
+				Riskfree,
+				Volatility
+			);
+			BlackScholesBodyGPU(
+				&callResult2,
+				&putResult2,
+				d_StockPrice[opt].y,
+				d_OptionStrike[opt].y,
+				d_OptionYears[opt].y,
+				Riskfree,
+				Volatility
+			);
+			d_CallResult[opt] = make_float2(callResult1, callResult2);
+			d_PutResult[opt] = make_float2(putResult1, putResult2);
+		}
+		
+	}
 }
 
 #endif

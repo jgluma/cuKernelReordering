@@ -151,42 +151,35 @@ void BlackScholes::memDeviceToHost(void)
 void BlackScholes::launch_kernel_Async(cudaStream_t stream)
 {
 	
-	for (int i = 0; i < num_iterations; i++)
-    {
-        BlackScholesGPU<<<DIV_UP((opt_n/2), 128), 128/*480, 128*/, 0, stream>>>(
-            (float2 *)d_CallResult,
-            (float2 *)d_PutResult,
-            (float2 *)d_StockPrice,
-            (float2 *)d_OptionStrike,
-            (float2 *)d_OptionYears,
-            RISKFREE,
-            VOLATILITY,
-            opt_n
-        );
-        
-    }
+	BlackScholesGPU<<<DIV_UP((opt_n/2), 128), 128/*480, 128*/, 0, stream>>>(
+		(float2 *)d_CallResult,
+		(float2 *)d_PutResult,
+		(float2 *)d_StockPrice,
+		(float2 *)d_OptionStrike,
+		(float2 *)d_OptionYears,
+		RISKFREE,
+		VOLATILITY,
+		opt_n,
+		num_iterations
+	);
 	
 	
 }
 
 void BlackScholes::launch_kernel(void)
 {
-	for (int i = 0; i < num_iterations; i++)
-    {
-        BlackScholesGPU<<<DIV_UP((opt_n/2), 128), 128/*480, 128*/>>>(
-            (float2 *)d_CallResult,
-            (float2 *)d_PutResult,
-            (float2 *)d_StockPrice,
-            (float2 *)d_OptionStrike,
-            (float2 *)d_OptionYears,
-            RISKFREE,
-            VOLATILITY,
-            opt_n
-        );
-        
-    }
-        
 
+	BlackScholesGPU<<<DIV_UP((opt_n/2), 128), 128/*480, 128*/>>>(
+		(float2 *)d_CallResult,
+		(float2 *)d_PutResult,
+		(float2 *)d_StockPrice,
+		(float2 *)d_OptionStrike,
+		(float2 *)d_OptionYears,
+		RISKFREE,
+		VOLATILITY,
+		opt_n,
+		num_iterations
+	);
 
 }
 

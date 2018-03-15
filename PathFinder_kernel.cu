@@ -11,21 +11,23 @@
 
 
 __global__ void dynproc_kernel(
-                int iteration, 
                 int *gpuWall,
                 int *gpuSrc,
                 int *gpuResults,
                 int cols, 
                 int rows,
-                int startStep,
-                int border)
+                int border,
+				int pyramid_height)
 {
 
         __shared__ int prev[BLOCK_SIZE_PATH_FINDER];
         __shared__ int result[BLOCK_SIZE_PATH_FINDER];
 
+  for (int startStep = 0; startStep < rows-1; startStep+=pyramid_height) {
+  
+  int iteration = MIN_PATH_FINDER(pyramid_height, rows-startStep-1);
   int bx = blockIdx.x;
-  int tx=threadIdx.x;
+  int tx = threadIdx.x;
   
         // each block finally computes result for a small block
         // after N iterations. 
@@ -90,6 +92,7 @@ __global__ void dynproc_kernel(
       if (computed){
           gpuResults[xidx]=result[tx];    
       }
+  }
 }
 
 #endif
