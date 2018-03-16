@@ -85,7 +85,6 @@ ifeq ($(dbg),1)
 else
       TARGET := release
 endif
-NVCCFLAGS += -g -G
 
 ALL_CCFLAGS :=
 ALL_CCFLAGS += $(NVCCFLAGS) -std=c++11
