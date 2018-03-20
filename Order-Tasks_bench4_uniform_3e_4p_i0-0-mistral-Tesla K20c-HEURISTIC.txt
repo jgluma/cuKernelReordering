@@ -1,2 +1,2 @@
 1 0 2 3 
-Time Simulation: 192.628
+Time Simulation: 193.319
