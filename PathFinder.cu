@@ -31,7 +31,8 @@ PathFinder::~PathFinder()
 {
 	//Free host memory
     if(data != NULL) cudaFreeHost(data);
-    if(wall != NULL) delete [] wall;
+	if(wall != NULL) cudaFreeHost(wall);
+    // if(wall != NULL) delete [] wall;
 
     //Device memory
     if(gpuResult[0] != NULL)      cudaFree(gpuResult[0]);
@@ -42,8 +43,9 @@ PathFinder::~PathFinder()
 void PathFinder::allocHostMemory(void)
 {
 	cudaMallocHost((void **)&data, rows*cols * sizeof(int));
+	cudaMallocHost((void **)&wall, rows * sizeof(int));
 
-    wall = new int*[rows];
+    //wall = new int*[rows];
 
     cudaMallocHost((void **)&result, cols*sizeof(int));
 }
@@ -51,7 +53,8 @@ void PathFinder::allocHostMemory(void)
 void PathFinder::freeHostMemory(void)
 {
 	if(data != NULL) cudaFreeHost(data);
-    if(wall != NULL) delete [] wall;
+	if(wall != NULL) cudaFreeHost(wall);
+    //if(wall != NULL) delete [] wall;
     if(result != NULL) cudaFreeHost(result);
 }
 
@@ -107,17 +110,18 @@ void PathFinder::memDeviceToHost(void)
 void PathFinder::launch_kernel_Async(cudaStream_t stream)
 {
 	dim3 dimBlock(BLOCK_SIZE_PATH_FINDER);
-    dim3 dimGrid(blockCols);  
+    dim3 dimGrid(blockCols * (rows / pyramid_height));  
     
     int src = 1, dst = 0;
-
+	int t = 0;
     
-            int temp = src;
-            src = dst;
-            dst = temp;
-            dynproc_kernel<<<dimGrid, dimBlock, 0, stream>>>( 
+	int temp = src;
+	src = dst;
+	dst = temp;
+	dynproc_kernel<<<dimGrid, dimBlock, 0, stream>>>(
+                MIN_PATH_FINDER(pyramid_height, rows-t-1), 
                 gpuWall, gpuResult[src], gpuResult[dst],
-                cols,rows, borderCols, pyramid_height);
+                cols,rows, t, borderCols);
     
 
     final_ret = dst;
@@ -127,17 +131,19 @@ void PathFinder::launch_kernel_Async(cudaStream_t stream)
 void PathFinder::launch_kernel(void)
 {
 	dim3 dimBlock(BLOCK_SIZE_PATH_FINDER);
-    dim3 dimGrid(blockCols);  
+    dim3 dimGrid(blockCols * (rows / pyramid_height));  
     
     int src = 1, dst = 0;
+	int t = 0;
 
     
-            int temp = src;
-            src = dst;
-            dst = temp;
-            dynproc_kernel<<<dimGrid, dimBlock>>>( 
+	int temp = src;
+	src = dst;
+	dst = temp;
+	dynproc_kernel<<<dimGrid, dimBlock>>>(
+                MIN_PATH_FINDER(pyramid_height, rows-t-1), 
                 gpuWall, gpuResult[src], gpuResult[dst],
-                cols,rows, borderCols, pyramid_height);
+                cols,rows, t, borderCols);
     
 
     final_ret = dst;

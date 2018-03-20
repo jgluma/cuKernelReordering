@@ -615,7 +615,7 @@ void launching_applications_2CopyEngines(cudaStream_t *streams, int *idx_process
 		if(i != 0)
 			cudaStreamWaitEvent(streams[tid], dth_end[idx_processes[i-1]], 0);
 						
-		tasks_v.at(id_task)->memDeviceToHostAsync(streams[tid]);
+		//tasks_v.at(id_task)->memDeviceToHostAsync(streams[tid]);
 			
 		cudaEventRecord(dth_end[tid], streams[tid]);
 				
@@ -801,6 +801,53 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 	free(htd_end);
 	free(dth_end);
 	free(kernel_end);
+}
+
+/**
+ * @brief      Sets the File name 1 producer.
+ * @details    This function sets the file name of the task id when the number of the producer threads are 1. 
+ * The name of the file is created
+ * according to the benchmar id
+ * @author     Antonio Jose Lazaro Munoz.
+ * @date       15/05/2017
+ *
+ * @param[in]      name       String reference to the file name.
+ * @param[in]      benchmark  Benchmark id.
+ */
+void setFileName_1producer(string &name, int benchmark)
+{
+	switch(benchmark)
+	{
+		case 1:
+		{
+			name = "ID-Tasks-1DK-3DT.txt";
+			break;
+		}
+
+		case 2:
+		{
+			name = "ID-Tasks-3DK-1DT.txt";
+			break;
+		}
+
+		case 3:
+		{
+			name = "ID-Tasks-2DK-2DT.txt";
+			break;
+		}
+
+		case 4:
+		{
+			name = "ID-Tasks-4DK-0DT.txt";
+			break;
+		}
+
+		case 5:
+		{
+			name = "ID-Tasks-0DK-4DT.txt";
+			break;
+		}
+	}
 }
 
 /**
@@ -1038,6 +1085,42 @@ void setFileName_32producer(string &name, int benchmark)
 	}
 }
 
+void setFileBenchmark_1producer(string &name, int benchmark)
+{
+	switch(benchmark)
+	{
+		case 1:
+		{
+			name = "realTasks_benchmark_1DK-3DT.txt";
+			break;
+		}
+
+		case 2:
+		{
+			name = "realTasks_benchmark_3DK-1DT.txt";
+			break;
+		}
+
+		case 3:
+		{
+			name = "realTasks_benchmark_2DK-2DT.txt";
+			break;
+		}
+
+		case 4:
+		{
+			name = "realTasks_benchmark_4DK-0DT.txt";
+			break;
+		}
+
+		case 5:
+		{
+			name = "realTasks_benchmark_0DK-4DT.txt";
+			break;
+		}
+	}
+}
+
 void setFileBenchmark_4producer(string &name, int benchmark)
 {
 	switch(benchmark)
@@ -1195,6 +1278,13 @@ void setFileBenchmark(string &name, int benchmark, int nproducer)
 {
 	switch(nproducer)
 	{
+		case 1:
+		{
+			setFileBenchmark_1producer(name, benchmark);
+
+			break;
+		}
+		
 		case 4:
 		{
 			setFileBenchmark_4producer(name, benchmark);
@@ -1320,6 +1410,13 @@ void setFileIdTasks(string &name, int benchmark, int nproducer)
 {
 	switch(nproducer)
 	{
+		case 1:
+		{	
+			setFileName_1producer(name, benchmark);
+
+			break;
+		}
+	
 		case 4:
 		{
 			setFileName_4producer(name, benchmark);
@@ -1362,7 +1459,7 @@ void setFileIdTasks(string &name, int benchmark, int nproducer)
  */
 int main(int argc, char *argv[])
 {
-	setenv("CUDA_DEVICE_MAX_CONNECTIONS", "2", 1);
+	setenv("CUDA_DEVICE_MAX_CONNECTIONS", "1", 1);
 
 	if(argc != 13)
 	{

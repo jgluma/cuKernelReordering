@@ -96,15 +96,18 @@ __global__ void BlackScholesGPU(
     ////Total number of threads in execution grid
     //const int THREAD_N = blockDim.x * gridDim.x;
 
-	for(int i = 0; i < num_iterations; i++){
+	
 	
 		const int opt = blockDim.x * blockIdx.x + threadIdx.x;
 
 		 // Calculating 2 options per thread to increase ILP (instruction level parallelism)
-		if (opt < (optN / 2))
-		{
-			float callResult1, callResult2;
-			float putResult1, putResult2;
+	if (opt < (optN / 2))
+	{
+		float callResult1, callResult2;
+		float putResult1, putResult2;
+		int x = 0;
+		for(int i = 0; i < num_iterations; i++){
+			x++;
 			BlackScholesBodyGPU(
 				&callResult1,
 				&putResult1,
@@ -123,10 +126,11 @@ __global__ void BlackScholesGPU(
 				Riskfree,
 				Volatility
 			);
+		}
+		if(x > 0){
 			d_CallResult[opt] = make_float2(callResult1, callResult2);
 			d_PutResult[opt] = make_float2(putResult1, putResult2);
 		}
-		
 	}
 }
 

@@ -26,9 +26,11 @@ BlackScholes::~BlackScholes()
 	if(h_StockPrice   	!=NULL) cudaFreeHost(h_StockPrice);
 	if(h_OptionStrike 	!=NULL) cudaFreeHost(h_OptionStrike);
 	if(h_OptionYears  	!=NULL) cudaFreeHost(h_OptionYears);
+	if(h_CallResultCPU 	!=NULL) cudaFreeHost(h_CallResultCPU);
+	if(h_PutResultCPU  	!=NULL) cudaFreeHost(h_PutResultCPU);
 
-	if(h_CallResultCPU	!=NULL) delete [] h_CallResultCPU;
-	if(h_PutResultCPU 	!=NULL) delete [] h_PutResultCPU;
+	// if(h_CallResultCPU	!=NULL) delete [] h_CallResultCPU;
+	// if(h_PutResultCPU 	!=NULL) delete [] h_PutResultCPU;
     
 
 	//Free device memory
@@ -50,9 +52,11 @@ void BlackScholes::allocHostMemory(void)
     cudaMallocHost((void **)&h_StockPrice, opt_sz);
     cudaMallocHost((void **)&h_OptionStrike, opt_sz);
     cudaMallocHost((void **)&h_OptionYears, opt_sz);
+	cudaMallocHost((void **)&h_CallResultCPU, opt_sz);
+    cudaMallocHost((void **)&h_PutResultCPU, opt_sz);
 
-    h_CallResultCPU = new float [opt_n];
-    h_PutResultCPU  = new float [opt_n];
+    // h_CallResultCPU = new float [opt_n];
+    // h_PutResultCPU  = new float [opt_n];
 	
 	
 }
@@ -66,9 +70,11 @@ void BlackScholes::freeHostMemory(void)
 	if(h_StockPrice   	!=NULL) cudaFreeHost(h_StockPrice);
 	if(h_OptionStrike 	!=NULL) cudaFreeHost(h_OptionStrike);
 	if(h_OptionYears  	!=NULL) cudaFreeHost(h_OptionYears);
+	if(h_CallResultCPU 	!=NULL) cudaFreeHost(h_CallResultCPU);
+	if(h_PutResultCPU  	!=NULL) cudaFreeHost(h_PutResultCPU);
 
-	if(h_CallResultCPU	!=NULL) delete [] h_CallResultCPU;
-	if(h_PutResultCPU 	!=NULL) delete [] h_PutResultCPU;
+	// if(h_CallResultCPU	!=NULL) delete [] h_CallResultCPU;
+	// if(h_PutResultCPU 	!=NULL) delete [] h_PutResultCPU;
 	
 }
 
