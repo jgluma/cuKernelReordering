@@ -6,6 +6,6 @@ do
 	for epoch in `seq 1 4`
 	do
 		echo "EPOCH: " $epoch
-		cat results_benchmark_$benchmark\_4p_$epoch\e_i0-0-$1\.txt
+		cat results_benchmark_$benchmark\_$2\p_$epoch\e_i0-0-$1\.txt
 	done
 done
