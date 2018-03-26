@@ -1174,10 +1174,6 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	cout << order_tasks[1] << endl;
 #endif
 	
-	cout << "deque_execution_HTD.size(): " << deque_execution_HTD.size() << endl;
-	cout << "deque_execution_K.size(): " << deque_execution_K.size() << endl;
-	cout << "deque_execution_DTH.size(): " << deque_execution_DTH.size() << endl;
-	
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
 								estimated_overlapped_time_DTH_per_stream_execute, order_tasks,
@@ -1205,10 +1201,6 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	cout << order_tasks[0] << endl;
 	cout << order_tasks[1] << endl;
 #endif
-
-	cout << "deque_execution_HTD.size(): " << deque_execution_HTD.size() << endl;
-	cout << "deque_execution_K.size(): " << deque_execution_K.size() << endl;
-	cout << "deque_execution_DTH.size(): " << deque_execution_DTH.size() << endl;
 
 	permutation_times[1] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
@@ -1262,10 +1254,6 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 				cout << new_order_tasks[j] << endl;
 #endif	
 	
-			cout << "deque_execution_HTD.size(): " << deque_execution_HTD.size() << endl;
-			cout << "deque_execution_K.size(): " << deque_execution_K.size() << endl;
-			cout << "deque_execution_DTH.size(): " << deque_execution_DTH.size() << endl;
-	
 			permutation_times[k] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute, 
 								estimated_overlapped_time_DTH_per_stream_execute, new_order_tasks, 
@@ -1296,7 +1284,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 		}
 		
 		if(i == 2)
-			iBestTime = 1;
+			iBestTime = 0;
 		
 		for(int j = i; j > iBestTime; j--)
 			order_tasks[j] = order_tasks[j - 1];
@@ -1310,10 +1298,6 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 			cout << order_tasks[j] << endl;
 #endif
 	}
-	
-	cout << "deque_execution_HTD.size(): " << deque_execution_HTD.size() << endl;
-	cout << "deque_execution_K.size(): " << deque_execution_K.size() << endl;
-	cout << "deque_execution_DTH.size(): " << deque_execution_DTH.size() << endl;
 	
 	/**** AÑADIR AQUI UNA NUEVA SIMULACION PARA TENER LOS ÚLTIMOS DATOS ****/
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
