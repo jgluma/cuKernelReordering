@@ -74,18 +74,6 @@ deque<infoCommand>deque_execution_DTH;
 deque<infoCommand>deque_execution_HTD;
 deque<infoCommand>deque_execution_K;
 
-deque<infoCommand>deque_sSimulation_DTH;
-deque<infoCommand>deque_sSimulation_HTD;
-deque<infoCommand>deque_sSimulation_K;
-
-deque<infoCommand>deque_sCurrent_DTH;
-deque<infoCommand>deque_sCurrent_HTD;
-deque<infoCommand>deque_sCurrent_K;
-
-deque<infoCommand>deque_sExecution_DTH;
-deque<infoCommand>deque_sExecution_HTD;
-deque<infoCommand>deque_sExecution_K;
-
 /**
  * @brief      Tokenizer
  * @details    This function tokenizes a string according to a delimiter.
@@ -1139,18 +1127,6 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	int iBestTime;
 	float bestTime;
 	float time_counter = 0;
-	
-	deque_sSimulation_HTD.clear();   deque_sSimulation_HTD = deque_simulation_HTD;
-	deque_sSimulation_K.clear();	   deque_sSimulation_K   = deque_simulation_K;
-	deque_sSimulation_DTH.clear();   deque_sSimulation_DTH = deque_simulation_DTH;
-	
-	deque_sCurrent_HTD.clear();   deque_sCurrent_HTD = deque_current_HTD;
-	deque_sCurrent_K.clear();	   deque_sCurrent_K   = deque_current_K;
-	deque_sCurrent_DTH.clear();   deque_sCurrent_DTH = deque_current_DTH;
-	
-	deque_sExecution_HTD.clear();   deque_sExecution_HTD = deque_execution_HTD;
-	deque_sExecution_K.clear();	   deque_sExecution_K   = deque_execution_K;
-	deque_sExecution_DTH.clear();   deque_sExecution_DTH = deque_execution_DTH;
 
 #if PRINT_NEH_TRACE
 	cout << "TIEMPOS DE TAREAS" << endl;
@@ -1198,17 +1174,9 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	cout << order_tasks[1] << endl;
 #endif
 	
-	deque_simulation_HTD.clear();   deque_simulation_HTD = deque_sSimulation_HTD;
-	deque_simulation_K.clear();	   deque_simulation_K   = deque_sSimulation_K;
-	deque_simulation_DTH.clear();   deque_simulation_DTH = deque_sSimulation_DTH;
-	
-	deque_current_HTD.clear();   deque_current_HTD = deque_sCurrent_HTD;
-	deque_current_K.clear();	   deque_current_K   = deque_sCurrent_K;
-	deque_current_DTH.clear();   deque_current_DTH = deque_sCurrent_DTH;
-	
-	deque_execution_HTD.clear();   deque_execution_HTD = deque_sExecution_HTD;
-	deque_execution_K.clear();	   deque_execution_K   = deque_sExecution_K;
-	deque_execution_DTH.clear();   deque_execution_DTH = deque_sExecution_DTH;
+	cout << "deque_execution_HTD.size(): " << deque_execution_HTD.size() << endl;
+	cout << "deque_execution_K.size(): " << deque_execution_K.size() << endl;
+	cout << "deque_execution_DTH.size(): " << deque_execution_DTH.size() << endl;
 	
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
@@ -1238,17 +1206,9 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	cout << order_tasks[1] << endl;
 #endif
 
-	deque_simulation_HTD.clear();   deque_simulation_HTD = deque_sSimulation_HTD;
-	deque_simulation_K.clear();	   deque_simulation_K   = deque_sSimulation_K;
-	deque_simulation_DTH.clear();   deque_simulation_DTH = deque_sSimulation_DTH;
-	
-	deque_current_HTD.clear();   deque_current_HTD = deque_sCurrent_HTD;
-	deque_current_K.clear();	   deque_current_K   = deque_sCurrent_K;
-	deque_current_DTH.clear();   deque_current_DTH = deque_sCurrent_DTH;
-	
-	deque_execution_HTD.clear();   deque_execution_HTD = deque_sExecution_HTD;
-	deque_execution_K.clear();	   deque_execution_K   = deque_sExecution_K;
-	deque_execution_DTH.clear();   deque_execution_DTH = deque_sExecution_DTH;
+	cout << "deque_execution_HTD.size(): " << deque_execution_HTD.size() << endl;
+	cout << "deque_execution_K.size(): " << deque_execution_K.size() << endl;
+	cout << "deque_execution_DTH.size(): " << deque_execution_DTH.size() << endl;
 
 	permutation_times[1] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
@@ -1301,18 +1261,10 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 			for(int j = 0; j <= i; j++)
 				cout << new_order_tasks[j] << endl;
 #endif	
-
-			deque_simulation_HTD.clear();   deque_simulation_HTD = deque_sSimulation_HTD;
-			deque_simulation_K.clear();	   deque_simulation_K   = deque_sSimulation_K;
-			deque_simulation_DTH.clear();   deque_simulation_DTH = deque_sSimulation_DTH;
-			
-			deque_current_HTD.clear();   deque_current_HTD = deque_sCurrent_HTD;
-			deque_current_K.clear();	   deque_current_K   = deque_sCurrent_K;
-			deque_current_DTH.clear();   deque_current_DTH = deque_sCurrent_DTH;
-			
-			deque_execution_HTD.clear();   deque_execution_HTD = deque_sExecution_HTD;
-			deque_execution_K.clear();	   deque_execution_K   = deque_sExecution_K;
-			deque_execution_DTH.clear();   deque_execution_DTH = deque_sExecution_DTH;
+	
+			cout << "deque_execution_HTD.size(): " << deque_execution_HTD.size() << endl;
+			cout << "deque_execution_K.size(): " << deque_execution_K.size() << endl;
+			cout << "deque_execution_DTH.size(): " << deque_execution_DTH.size() << endl;
 	
 			permutation_times[k] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute, 
@@ -1356,17 +1308,9 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 #endif
 	}
 	
-	deque_simulation_HTD.clear();   deque_simulation_HTD = deque_sSimulation_HTD;
-	deque_simulation_K.clear();	   deque_simulation_K   = deque_sSimulation_K;
-	deque_simulation_DTH.clear();   deque_simulation_DTH = deque_sSimulation_DTH;
-	
-	deque_current_HTD.clear();   deque_current_HTD = deque_sCurrent_HTD;
-	deque_current_K.clear();	   deque_current_K   = deque_sCurrent_K;
-	deque_current_DTH.clear();   deque_current_DTH = deque_sCurrent_DTH;
-	
-	deque_execution_HTD.clear();   deque_execution_HTD = deque_sExecution_HTD;
-	deque_execution_K.clear();	   deque_execution_K   = deque_sExecution_K;
-	deque_execution_DTH.clear();   deque_execution_DTH = deque_sExecution_DTH;
+	cout << "deque_execution_HTD.size(): " << deque_execution_HTD.size() << endl;
+	cout << "deque_execution_K.size(): " << deque_execution_K.size() << endl;
+	cout << "deque_execution_DTH.size(): " << deque_execution_DTH.size() << endl;
 	
 	/**** AÑADIR AQUI UNA NUEVA SIMULACION PARA TENER LOS ÚLTIMOS DATOS ****/
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
