@@ -598,7 +598,7 @@ void executeKernels(int gpu, int nIter, float *time_kernels, ifstream &fb, int n
 
 		for(int k = 0; k < nIter; k++)
 		{
-			task->memHostToDeviceAsync(stream);
+			task->memHostToDeviceAsync(stream);;
 			cudaEventRecord(start_event, 0);
 			task->launch_kernel_Async(stream);
 			cudaEventRecord(stop_event, 0);
@@ -1095,7 +1095,7 @@ void setFileIdTasks(string &name, int benchmark, int nproducer)
  * @return     
  */
 int main(int argc, char *argv[])
-{
+{	
 	if(argc != 12)
 	{
 	  cout << "Execute: <program> <gpu> <nproducer> <nepoch> <max_tam_batch> <task_file_path>"; 

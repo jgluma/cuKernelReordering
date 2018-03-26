@@ -23,6 +23,7 @@
 using namespace std;
 
 #define PRINT_SIMULATOR_TRACE	0
+#define PRINT_NEH_TRACE 1
 
 #define DK	0
 #define DT	1
@@ -72,6 +73,18 @@ deque<infoCommand>deque_current_K;
 deque<infoCommand>deque_execution_DTH;
 deque<infoCommand>deque_execution_HTD;
 deque<infoCommand>deque_execution_K;
+
+deque<infoCommand>deque_sSimulation_DTH;
+deque<infoCommand>deque_sSimulation_HTD;
+deque<infoCommand>deque_sSimulation_K;
+
+deque<infoCommand>deque_sCurrent_DTH;
+deque<infoCommand>deque_sCurrent_HTD;
+deque<infoCommand>deque_sCurrent_K;
+
+deque<infoCommand>deque_sExecution_DTH;
+deque<infoCommand>deque_sExecution_HTD;
+deque<infoCommand>deque_sExecution_K;
 
 /**
  * @brief      Tokenizer
@@ -1127,41 +1140,75 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	float bestTime;
 	float time_counter = 0;
 	
-	// cout << "TIEMPOS DE TAREAS" << endl;
-	// cout << "-----------------" << endl;
-	// for(int app = 0; app < N_TASKS; app++){
-		// cout << "TAREA " << app << endl;
-		// cout << "-------" << endl;
-		// cout << "HTD: " << estimated_time_HTD_per_stream_execute[app] << endl;
-		// cout << "KERNEL: " << h_time_kernels_tasks_execute[app] << endl;
-		// cout << "DTH: " << estimated_time_DTH_per_stream_execute[app] << endl;
-	// }
+	deque_sSimulation_HTD.clear();   deque_sSimulation_HTD = deque_simulation_HTD;
+	deque_sSimulation_K.clear();	   deque_sSimulation_K   = deque_simulation_K;
+	deque_sSimulation_DTH.clear();   deque_sSimulation_DTH = deque_simulation_DTH;
 	
-	// cout << "ORIGINAL" << endl;
-	// cout << "--------" << endl;
+	deque_sCurrent_HTD.clear();   deque_sCurrent_HTD = deque_current_HTD;
+	deque_sCurrent_K.clear();	   deque_sCurrent_K   = deque_current_K;
+	deque_sCurrent_DTH.clear();   deque_sCurrent_DTH = deque_current_DTH;
+	
+	deque_sExecution_HTD.clear();   deque_sExecution_HTD = deque_execution_HTD;
+	deque_sExecution_K.clear();	   deque_sExecution_K   = deque_execution_K;
+	deque_sExecution_DTH.clear();   deque_sExecution_DTH = deque_execution_DTH;
+
+#if PRINT_NEH_TRACE
+	cout << "TIEMPOS DE TAREAS" << endl;
+	cout << "-----------------" << endl;
+	for(int app = 0; app < N_TASKS; app++){
+		cout << "TAREA " << app << endl;
+		cout << "-------" << endl;
+		cout << "HTD: " << estimated_time_HTD_per_stream_execute[app] << endl;
+		cout << "KERNEL: " << h_time_kernels_tasks_execute[app] << endl;
+		cout << "DTH: " << estimated_time_DTH_per_stream_execute[app] << endl;
+	}
+	
+	cout << "ORIGINAL" << endl;
+	cout << "--------" << endl;
+#endif
+
 	for(int app = 0; app < N_TASKS; app++){
 		total_time_tasks[app] = estimated_time_HTD_per_stream_execute[app] +
 								h_time_kernels_tasks_execute[app] +
 								estimated_time_DTH_per_stream_execute[app];
 		index_tasks[app] = app;
-		// cout << index_tasks[app] << ": " << total_time_tasks[app] << endl;
+		
+#if PRINT_NEH_TRACE
+		cout << index_tasks[app] << ": " << total_time_tasks[app] << endl;
+#endif
 	}
 	
 	bubble_sort(total_time_tasks, index_tasks);
-	
-	// cout << "ORDENADO" << endl;
-	// cout << "--------" << endl;
-	// for(int app = 0; app < N_TASKS; app++){
-		// cout << index_tasks[app] << ": " << total_time_tasks[app] << endl;
-	// }		
+
+#if PRINT_NEH_TRACE	
+	cout << "ORDENADO" << endl;
+	cout << "--------" << endl;
+	for(int app = 0; app < N_TASKS; app++){
+		cout << index_tasks[app] << ": " << total_time_tasks[app] << endl;
+	}
+#endif	
 	
 	order_tasks[0] = index_tasks[0];
 	order_tasks[1] = index_tasks[1];
+
+#if PRINT_NEH_TRACE		
+	cout << "ORDEN S1" << endl;
+	cout << "--------" << endl;
+	cout << order_tasks[0] << endl;
+	cout << order_tasks[1] << endl;
+#endif
 	
-	// cout << "ORDEN S1" << endl;
-	// cout << "--------" << endl;
-	// cout << order_tasks[0] << endl;
-	// cout << order_tasks[1] << endl;
+	deque_simulation_HTD.clear();   deque_simulation_HTD = deque_sSimulation_HTD;
+	deque_simulation_K.clear();	   deque_simulation_K   = deque_sSimulation_K;
+	deque_simulation_DTH.clear();   deque_simulation_DTH = deque_sSimulation_DTH;
+	
+	deque_current_HTD.clear();   deque_current_HTD = deque_sCurrent_HTD;
+	deque_current_K.clear();	   deque_current_K   = deque_sCurrent_K;
+	deque_current_DTH.clear();   deque_current_DTH = deque_sCurrent_DTH;
+	
+	deque_execution_HTD.clear();   deque_execution_HTD = deque_sExecution_HTD;
+	deque_execution_K.clear();	   deque_execution_K   = deque_sExecution_K;
+	deque_execution_DTH.clear();   deque_execution_DTH = deque_sExecution_DTH;
 	
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
@@ -1174,18 +1221,34 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 								t_current_fin_htd, t_current_fin_kernel, t_current_fin_dth,
 								t_current_overlap_htd, t_current_overlap_dth,
 								t_previous_last_dth_stream, t_current_last_dth_stream, id_epoch);
-								
-	// cout << "PERMUTATION TIME" << endl;
-	// cout << "----------------" << endl;
-	// cout << permutation_times[0] << endl;
+
+#if PRINT_NEH_TRACE									
+	cout << "PERMUTATION TIME" << endl;
+	cout << "----------------" << endl;
+	cout << permutation_times[0] << endl;
+#endif
 	
 	order_tasks[0] = index_tasks[1];
 	order_tasks[1] = index_tasks[0];
+
+#if PRINT_NEH_TRACE		
+	cout << "ORDEN S2" << endl;
+	cout << "--------" << endl;
+	cout << order_tasks[0] << endl;
+	cout << order_tasks[1] << endl;
+#endif
+
+	deque_simulation_HTD.clear();   deque_simulation_HTD = deque_sSimulation_HTD;
+	deque_simulation_K.clear();	   deque_simulation_K   = deque_sSimulation_K;
+	deque_simulation_DTH.clear();   deque_simulation_DTH = deque_sSimulation_DTH;
 	
-	// cout << "ORDEN S2" << endl;
-	// cout << "--------" << endl;
-	// cout << order_tasks[0] << endl;
-	// cout << order_tasks[1] << endl;
+	deque_current_HTD.clear();   deque_current_HTD = deque_sCurrent_HTD;
+	deque_current_K.clear();	   deque_current_K   = deque_sCurrent_K;
+	deque_current_DTH.clear();   deque_current_DTH = deque_sCurrent_DTH;
+	
+	deque_execution_HTD.clear();   deque_execution_HTD = deque_sExecution_HTD;
+	deque_execution_K.clear();	   deque_execution_K   = deque_sExecution_K;
+	deque_execution_DTH.clear();   deque_execution_DTH = deque_sExecution_DTH;
 
 	permutation_times[1] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
@@ -1198,24 +1261,30 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 								t_current_fin_htd, t_current_fin_kernel, t_current_fin_dth,
 								t_current_overlap_htd, t_current_overlap_dth,
 								t_previous_last_dth_stream, t_current_last_dth_stream, id_epoch);
-								
-	// cout << "PERMUTATION TIME" << endl;
-	// cout << "----------------" << endl;
-	// cout << permutation_times[1] << endl;
+
+#if PRINT_NEH_TRACE									
+	cout << "PERMUTATION TIME" << endl;
+	cout << "----------------" << endl;
+	cout << permutation_times[1] << endl;
+#endif
 	
 	if(permutation_times[0] < permutation_times[1]){
 		order_tasks[0] = index_tasks[0];
 		order_tasks[1] = index_tasks[1];
 	}
 	
-	// cout << "ORDEN S1 O S2" << endl;
-	// cout << "-------------" << endl;
-	// cout << order_tasks[0] << endl;
-	// cout << order_tasks[1] << endl;
+#if PRINT_NEH_TRACE	
+	cout << "ORDEN S1 O S2" << endl;
+	cout << "-------------" << endl;
+	cout << order_tasks[0] << endl;
+	cout << order_tasks[1] << endl;
+#endif
 	
 	for(int i = 2; i < N_TASKS; i++){
-		// cout << "TASK " << i << endl;
-		// cout << "******" << endl;
+#if PRINT_NEH_TRACE	
+		cout << "TASK " << i << endl;
+		cout << "******" << endl;
+#endif
 		
 		for(int k = 0; k <= i; k++){
 			for(int j = i; j > k; j--)
@@ -1225,12 +1294,26 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 			
 			for(int j = k - 1; j >= 0; j--)
 				new_order_tasks[j] = order_tasks[j];
-			
-			// cout << "PERMUTATION" << endl;
-			// cout << "-----------" << endl;
-			// for(int j = 0; j <= i; j++)
-				// cout << new_order_tasks[j] << endl;
 
+#if PRINT_NEH_TRACE	
+			cout << "PERMUTATION" << endl;
+			cout << "-----------" << endl;
+			for(int j = 0; j <= i; j++)
+				cout << new_order_tasks[j] << endl;
+#endif	
+
+			deque_simulation_HTD.clear();   deque_simulation_HTD = deque_sSimulation_HTD;
+			deque_simulation_K.clear();	   deque_simulation_K   = deque_sSimulation_K;
+			deque_simulation_DTH.clear();   deque_simulation_DTH = deque_sSimulation_DTH;
+			
+			deque_current_HTD.clear();   deque_current_HTD = deque_sCurrent_HTD;
+			deque_current_K.clear();	   deque_current_K   = deque_sCurrent_K;
+			deque_current_DTH.clear();   deque_current_DTH = deque_sCurrent_DTH;
+			
+			deque_execution_HTD.clear();   deque_execution_HTD = deque_sExecution_HTD;
+			deque_execution_K.clear();	   deque_execution_K   = deque_sExecution_K;
+			deque_execution_DTH.clear();   deque_execution_DTH = deque_sExecution_DTH;
+	
 			permutation_times[k] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute, 
 								estimated_overlapped_time_DTH_per_stream_execute, new_order_tasks, 
@@ -1242,10 +1325,12 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 								t_current_fin_htd, t_current_fin_kernel, t_current_fin_dth,
 								t_current_overlap_htd, t_current_overlap_dth,
 								t_previous_last_dth_stream, t_current_last_dth_stream, id_epoch);
-								
-			// cout << "TIEMPO " << k << endl;
-			// cout << "--------" << endl;
-			// cout << permutation_times[k] << endl;
+
+#if PRINT_NEH_TRACE									
+			cout << "TIEMPO " << k << endl;
+			cout << "--------" << endl;
+			cout << permutation_times[k] << endl;
+#endif
 		}
 		
 		iBestTime = 0;
@@ -1262,12 +1347,26 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 			order_tasks[j] = order_tasks[j - 1];
 		
 		order_tasks[iBestTime] = index_tasks[i];
-		
-		// cout << "MEJOR ORDEN" << endl;
-		// cout << "-----------" << endl;
-		// for(int j = 0; j <= i; j++)
-			// cout << order_tasks[j] << endl;
+
+#if PRINT_NEH_TRACE	
+		cout << "MEJOR ORDEN" << endl;
+		cout << "-----------" << endl;
+		for(int j = 0; j <= i; j++)
+			cout << order_tasks[j] << endl;
+#endif
 	}
+	
+	deque_simulation_HTD.clear();   deque_simulation_HTD = deque_sSimulation_HTD;
+	deque_simulation_K.clear();	   deque_simulation_K   = deque_sSimulation_K;
+	deque_simulation_DTH.clear();   deque_simulation_DTH = deque_sSimulation_DTH;
+	
+	deque_current_HTD.clear();   deque_current_HTD = deque_sCurrent_HTD;
+	deque_current_K.clear();	   deque_current_K   = deque_sCurrent_K;
+	deque_current_DTH.clear();   deque_current_DTH = deque_sCurrent_DTH;
+	
+	deque_execution_HTD.clear();   deque_execution_HTD = deque_sExecution_HTD;
+	deque_execution_K.clear();	   deque_execution_K   = deque_sExecution_K;
+	deque_execution_DTH.clear();   deque_execution_DTH = deque_sExecution_DTH;
 	
 	/**** AÑADIR AQUI UNA NUEVA SIMULACION PARA TENER LOS ÚLTIMOS DATOS ****/
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
@@ -1284,18 +1383,22 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 								
 	time_counter = permutation_times[0];
 
-	// cout << "ORDEN FINAL" << endl;
-	// cout << "-----------" << endl;
-	// for(int i = 0; i < N_TASKS; i++)
-		// cout << order_tasks[i] << endl;
+#if PRINT_NEH_TRACE	
+	cout << "ORDEN FINAL" << endl;
+	cout << "-----------" << endl;
+	for(int i = 0; i < N_TASKS; i++)
+		cout << order_tasks[i] << endl;
+#endif
 		
 	for(int i = 0; i < N_TASKS; i++)
 		h_order_processes[i] = order_tasks[i];
 
-	// cout << "ORDEN TASKS" << endl;
-	// cout << "-----------" << endl;
-	// for(int i = 0; i < N_TASKS; i++)
-		// cout << h_order_processes[i] << endl;
+#if PRINT_NEH_TRACE	
+	cout << "ORDEN TASKS" << endl;
+	cout << "-----------" << endl;
+	for(int i = 0; i < N_TASKS; i++)
+		cout << h_order_processes[i] << endl;
+#endif
 	
 	delete [] total_time_tasks;
 	delete [] index_tasks;
