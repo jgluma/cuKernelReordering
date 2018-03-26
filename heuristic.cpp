@@ -1250,7 +1250,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 #if PRINT_NEH_TRACE	
 			cout << "PERMUTATION" << endl;
 			cout << "-----------" << endl;
-			for(int j = 0; j <= i; j++)
+			for(int j = 0; j <= N_TASKS; j++)
 				cout << new_order_tasks[j] << endl;
 #endif	
 	
