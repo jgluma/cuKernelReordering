@@ -1295,6 +1295,9 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 			}
 		}
 		
+		if(i == 2)
+			iBestTime = 1;
+		
 		for(int j = i; j > iBestTime; j--)
 			order_tasks[j] = order_tasks[j - 1];
 		
