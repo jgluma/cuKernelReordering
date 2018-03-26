@@ -1250,7 +1250,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 #if PRINT_NEH_TRACE	
 			cout << "PERMUTATION" << endl;
 			cout << "-----------" << endl;
-			for(int j = 0; j <= N_TASKS; j++)
+			for(int j = 0; j <= i; j++)
 				cout << new_order_tasks[j] << endl;
 #endif	
 	
@@ -1282,9 +1282,6 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 				bestTime = permutation_times[j];
 			}
 		}
-		
-		if(i == 2)
-			iBestTime = 0;
 		
 		for(int j = i; j > iBestTime; j--)
 			order_tasks[j] = order_tasks[j - 1];
