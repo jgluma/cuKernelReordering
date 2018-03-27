@@ -23,7 +23,7 @@
 using namespace std;
 
 #define PRINT_SIMULATOR_TRACE	0
-#define PRINT_NEH_TRACE 1
+#define PRINT_NEH_TRACE 0
 
 #define DK	0
 #define DT	1
@@ -280,10 +280,6 @@ float simulator2CopyEngine_bubble_command_v6_FAIR(float *time_kernels, int chunk
 		HTD_command.t_overlap_CPU_GPU = current_HTD->t_overlap_CPU_GPU;
 		
 		deque_simulation_HTD.push_back(HTD_command);
-		
-		cout << "current_HTD->id: " << current_HTD->id << endl;
-		cout << "current_HTD->t_ini: " << current_HTD->t_ini << endl;
-		cout << "current_HTD->t_fin: " << current_HTD->t_fin << endl;
 	}
 	
 	for(deque<infoCommand>::iterator current_K = deque_execution_K.begin(); current_K != deque_execution_K.end(); current_K++)
@@ -300,10 +296,6 @@ float simulator2CopyEngine_bubble_command_v6_FAIR(float *time_kernels, int chunk
 		kernel_command.t_kernel = current_K->t_kernel;
 		
 		deque_simulation_K.push_back(kernel_command);
-		
-		cout << "current_K->id: " << current_K->id << endl;
-		cout << "current_K->t_ini: " << current_K->t_ini << endl;
-		cout << "current_K->t_fin: " << current_K->t_fin << endl;
 	}
 	
 	for(deque<infoCommand>::iterator current_DTH = deque_execution_DTH.begin(); current_DTH != deque_execution_DTH.end(); current_DTH++)
@@ -325,10 +317,6 @@ float simulator2CopyEngine_bubble_command_v6_FAIR(float *time_kernels, int chunk
 		DTH_command.t_overlap_GPU_CPU = current_DTH->t_overlap_GPU_CPU;
 		
 		deque_simulation_DTH.push_back(DTH_command);
-		
-		cout << "current_DTH->id: " << current_DTH->id << endl;
-		cout << "current_DTH->t_ini: " << current_DTH->t_ini << endl;
-		cout << "current_DTH->t_fin: " << current_DTH->t_fin << endl;
 	}
 		
 	
