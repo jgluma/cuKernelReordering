@@ -1231,8 +1231,9 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	cout << order_tasks[0] << endl;
 	cout << order_tasks[1] << endl;
 #endif
+	int pos = N_TASKS - 1;
 	
-	for(int i = 2, int pos = N_TASKS - 1; i < N_TASKS; i++, pos--){
+	for(int i = 2; i < N_TASKS; i++){
 #if PRINT_NEH_TRACE	
 		cout << "TASK " << i << endl;
 		cout << "******" << endl;
@@ -1287,6 +1288,8 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 			order_tasks[j] = order_tasks[j - 1];
 		
 		order_tasks[iBestTime] = index_tasks[pos];
+		
+		pos--;
 
 #if PRINT_NEH_TRACE	
 		cout << "MEJOR ORDEN" << endl;
