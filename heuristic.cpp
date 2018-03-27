@@ -281,6 +281,9 @@ float simulator2CopyEngine_bubble_command_v6_FAIR(float *time_kernels, int chunk
 		
 		deque_simulation_HTD.push_back(HTD_command);
 		
+		cout << "current_HTD->id: " << current_HTD->id << endl;
+		cout << "current_HTD->t_ini: " << current_HTD->t_ini << endl;
+		cout << "current_HTD->t_fin: " << current_HTD->t_fin << endl;
 	}
 	
 	for(deque<infoCommand>::iterator current_K = deque_execution_K.begin(); current_K != deque_execution_K.end(); current_K++)
@@ -298,6 +301,9 @@ float simulator2CopyEngine_bubble_command_v6_FAIR(float *time_kernels, int chunk
 		
 		deque_simulation_K.push_back(kernel_command);
 		
+		cout << "current_K->id: " << current_K->id << endl;
+		cout << "current_K->t_ini: " << current_K->t_ini << endl;
+		cout << "current_K->t_fin: " << current_K->t_fin << endl;
 	}
 	
 	for(deque<infoCommand>::iterator current_DTH = deque_execution_DTH.begin(); current_DTH != deque_execution_DTH.end(); current_DTH++)
@@ -320,6 +326,9 @@ float simulator2CopyEngine_bubble_command_v6_FAIR(float *time_kernels, int chunk
 		
 		deque_simulation_DTH.push_back(DTH_command);
 		
+		cout << "current_DTH->id: " << current_DTH->id << endl;
+		cout << "current_DTH->t_ini: " << current_DTH->t_ini << endl;
+		cout << "current_DTH->t_fin: " << current_DTH->t_fin << endl;
 	}
 		
 	
@@ -1122,11 +1131,16 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	float *total_time_tasks = new float[N_TASKS];
 	int *index_tasks = new int[N_TASKS];
 	int *order_tasks = new int[N_TASKS];
+	int *execute_batch = new int[N_TASKS];
 	int *new_order_tasks = new int[N_TASKS];
 	float *permutation_times = new float[N_TASKS];
 	int iBestTime;
 	float bestTime;
 	float time_counter = 0;
+	
+	for(int app = 0; app < N_TASKS; app++){
+		execute_batch[app] = app;
+	}
 
 #if PRINT_NEH_TRACE
 	cout << "TIEMPOS DE TAREAS" << endl;
@@ -1177,7 +1191,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
 								estimated_overlapped_time_DTH_per_stream_execute, order_tasks,
-								order_tasks, 2,
+								execute_batch, 2,
 								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
 								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
 								t_previous_overlap_htd, t_previous_overlap_dth,
@@ -1205,7 +1219,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	permutation_times[1] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
 								estimated_overlapped_time_DTH_per_stream_execute, order_tasks,
-								order_tasks, 2,
+								execute_batch, 2,
 								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
 								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
 								t_previous_overlap_htd, t_previous_overlap_dth,
@@ -1257,7 +1271,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 			permutation_times[k] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute, 
 								estimated_overlapped_time_DTH_per_stream_execute, new_order_tasks, 
-								new_order_tasks, i+1, 
+								execute_batch, i+1, 
 								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
 								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
 								t_previous_overlap_htd, t_previous_overlap_dth,
@@ -1300,7 +1314,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute, 
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute, 
 								estimated_overlapped_time_DTH_per_stream_execute, order_tasks, 
-								order_tasks, N_TASKS,
+								execute_batch, N_TASKS,
 								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
 								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
 								t_previous_overlap_htd, t_previous_overlap_dth,
@@ -1331,6 +1345,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	delete [] total_time_tasks;
 	delete [] index_tasks;
 	delete [] order_tasks;
+	delete [] execute_batch;
 	delete [] new_order_tasks;
 	delete [] permutation_times;
 	/***************************************/
