@@ -1122,6 +1122,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	float *total_time_tasks = new float[N_TASKS];
 	int *index_tasks = new int[N_TASKS];
 	int *order_tasks = new int[N_TASKS];
+	int *new_order_tasks = new int[N_TASKS];
 	float *permutation_times = new float[N_TASKS];
 	int iBestTime;
 	float bestTime;
@@ -1161,27 +1162,22 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	for(int app = 0; app < N_TASKS; app++){
 		cout << index_tasks[app] << ": " << total_time_tasks[app] << endl;
 	}
-#endif
-
-	int *new_order_tasks = new int[2];
+#endif	
 	
-	new_order_tasks[0] = index_tasks[0];
-	new_order_tasks[1] = index_tasks[1];
-	
-	// order_tasks[0] = index_tasks[0];
-	// order_tasks[1] = index_tasks[1];
+	order_tasks[0] = index_tasks[0];
+	order_tasks[1] = index_tasks[1];
 
 #if PRINT_NEH_TRACE		
 	cout << "ORDEN S1" << endl;
 	cout << "--------" << endl;
-	cout << new_order_tasks[0] << endl;
-	cout << new_order_tasks[1] << endl;
+	cout << order_tasks[0] << endl;
+	cout << order_tasks[1] << endl;
 #endif
 	
 	permutation_times[0] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
-								estimated_overlapped_time_DTH_per_stream_execute, new_order_tasks,
-								new_order_tasks, 2,
+								estimated_overlapped_time_DTH_per_stream_execute, order_tasks,
+								order_tasks, 2,
 								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
 								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
 								t_previous_overlap_htd, t_previous_overlap_dth,
@@ -1195,24 +1191,21 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	cout << "----------------" << endl;
 	cout << permutation_times[0] << endl;
 #endif
-
-	new_order_tasks[0] = index_tasks[1];
-	new_order_tasks[1] = index_tasks[0];
 	
-	// order_tasks[0] = index_tasks[1];
-	// order_tasks[1] = index_tasks[0];
+	order_tasks[0] = index_tasks[1];
+	order_tasks[1] = index_tasks[0];
 
 #if PRINT_NEH_TRACE		
 	cout << "ORDEN S2" << endl;
 	cout << "--------" << endl;
-	cout << new_order_tasks[0] << endl;
-	cout << new_order_tasks[1] << endl;
+	cout << order_tasks[0] << endl;
+	cout << order_tasks[1] << endl;
 #endif
 
 	permutation_times[1] = simulator2CopyEngine_bubble_command_v6_FAIR(h_time_kernels_tasks_execute, 1, estimated_time_HTD_per_stream_execute,
 								estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
-								estimated_overlapped_time_DTH_per_stream_execute, new_order_tasks,
-								new_order_tasks, 2,
+								estimated_overlapped_time_DTH_per_stream_execute, order_tasks,
+								order_tasks, 2,
 								t_previous_ini_htd, t_previous_ini_kernel, t_previous_ini_dth,
 								t_previous_fin_htd, t_previous_fin_kernel, t_previous_fin_dth,
 								t_previous_overlap_htd, t_previous_overlap_dth,
@@ -1227,15 +1220,9 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	cout << permutation_times[1] << endl;
 #endif
 	
-	delete [] new_order_tasks;
-	
 	if(permutation_times[0] < permutation_times[1]){
 		order_tasks[0] = index_tasks[0];
 		order_tasks[1] = index_tasks[1];
-	}
-	else{
-		order_tasks[0] = index_tasks[1];
-		order_tasks[1] = index_tasks[0];
 	}
 	
 #if PRINT_NEH_TRACE	
@@ -1245,19 +1232,17 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	cout << order_tasks[1] << endl;
 #endif
 	
-	for(int i = 2; i < N_TASKS; i++){
+	for(int i = 2, int pos = N_TASKS - 1; i < N_TASKS; i++, pos--){
 #if PRINT_NEH_TRACE	
 		cout << "TASK " << i << endl;
 		cout << "******" << endl;
 #endif
-
-		int *new_order_tasks = new int[i+1];
 		
 		for(int k = 0; k <= i; k++){
 			for(int j = i; j > k; j--)
 				new_order_tasks[j] = order_tasks[j - 1];
 				
-			new_order_tasks[k] = index_tasks[i];
+			new_order_tasks[k] = index_tasks[pos];
 			
 			for(int j = k - 1; j >= 0; j--)
 				new_order_tasks[j] = order_tasks[j];
@@ -1288,8 +1273,6 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 #endif
 		}
 		
-		delete [] new_order_tasks;
-		
 		iBestTime = 0;
 		bestTime = permutation_times[0];
 		
@@ -1303,7 +1286,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 		for(int j = i; j > iBestTime; j--)
 			order_tasks[j] = order_tasks[j - 1];
 		
-		order_tasks[iBestTime] = index_tasks[i];
+		order_tasks[iBestTime] = index_tasks[pos];
 
 #if PRINT_NEH_TRACE	
 		cout << "MEJOR ORDEN" << endl;
@@ -1348,6 +1331,7 @@ float neh_F3(int *h_order_processes, float *h_time_kernels_tasks_execute, float 
 	delete [] total_time_tasks;
 	delete [] index_tasks;
 	delete [] order_tasks;
+	delete [] new_order_tasks;
 	delete [] permutation_times;
 	/***************************************/
 	
