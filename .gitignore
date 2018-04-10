@@ -3,3 +3,7 @@ streamsModel-VCPP
 timesEstimations
 heuristic
 execution
+Matrix-Tasks*
+Order-Tasks*
+rep_times*
+results_benchmark*
