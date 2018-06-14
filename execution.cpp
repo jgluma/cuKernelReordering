@@ -702,7 +702,7 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
   	gettimeofday(&t1, NULL);
   	bool start_work = false;
 
-  	cudaProfilerStart();
+  	//cudaProfilerStart();
 
   	//Esperamos a que todas las tareas esten disponibles en el buffer
   	while(pending_tasks_buffer.getProducedElements() != N_TASKS*nepoch);
@@ -760,7 +760,7 @@ void handler_gpu_func(int gpu, atomic<int> &stop_handler_gpu, BufferTasks &pendi
 
 	cudaDeviceSynchronize();
 
-	cudaProfilerStop();
+	//cudaProfilerStop();
 
 	gettimeofday(&t2, NULL);
 	double timer = (t2.tv_sec - t1.tv_sec) * 1000000.0 + (t2.tv_usec - t1.tv_usec);

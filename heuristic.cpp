@@ -3135,6 +3135,10 @@ int main(int argc, char *argv[])
 	else{
 		if (str_heuristic == "NEH")
 			heu = 2;
+		else{
+			if (str_heuristic == "NEH_O")
+				heu = 3;
+		}
 	}
 	
 	float *elapsed_times = new float[nIter];	//Execution times
@@ -3229,8 +3233,14 @@ int main(int argc, char *argv[])
 			h_time_kernels_tasks_execute[app]                     = h_time_kernels_tasks[app];
 			estimated_time_HTD_per_stream_execute[app]            = estimated_time_HTD[app];
 			estimated_time_DTH_per_stream_execute[app]            = estimated_time_DTH[app];
-			estimated_overlapped_time_HTD_per_stream_execute[app] = estimated_overlapped_time_HTD[app];
-			estimated_overlapped_time_DTH_per_stream_execute[app] = estimated_overlapped_time_DTH[app];
+			if(heu != 3){
+				estimated_overlapped_time_HTD_per_stream_execute[app] = estimated_overlapped_time_HTD[app];
+				estimated_overlapped_time_DTH_per_stream_execute[app] = estimated_overlapped_time_DTH[app];
+			}
+			else{
+				estimated_overlapped_time_HTD_per_stream_execute[app] = estimated_time_HTD[app];
+				estimated_overlapped_time_DTH_per_stream_execute[app] = estimated_time_DTH[app];
+			}
 		}
 		
 		float time_simulation = 0;
@@ -3252,6 +3262,7 @@ int main(int argc, char *argv[])
 												t_previous_last_dth_stream, t_current_last_dth_stream, scheduled_tasks/nstreams);
 				break;
 				case 2:
+				case 3:
 					time_simulation = neh_F3(h_order_processes, h_time_kernels_tasks_execute, estimated_time_HTD_per_stream_execute, 
 											estimated_time_DTH_per_stream_execute, estimated_overlapped_time_HTD_per_stream_execute,
 											estimated_overlapped_time_DTH_per_stream_execute, t_previous_ini_htd, t_previous_ini_kernel,

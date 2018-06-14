@@ -1294,6 +1294,13 @@ int main(int argc, char *argv[])
     
   	//PCIe microbencmarking
   	microbenchmarkingPCI(gpu, &LoHTD, &LoDTH, &GHTD, &overlappedGHTD, &GDTH, &overlappedGDTH, nIter);
+	
+	cout << "LoHTD: " << LoHTD << endl;
+	cout << "LoDTH: " << LoDTH << endl;
+	cout << "GHTD: " << GHTD << endl;
+	cout << "GDTH: " << GDTH << endl;
+	cout << "overlappedGHTD: " << overlappedGHTD << endl;
+	cout << "overlappedGDTH: " << overlappedGDTH << endl;
 
   	for(int app = 0; app < N_TASKS; app++)
   	{
